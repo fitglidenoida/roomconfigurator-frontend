@@ -1,103 +1,157 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
+
+type AvMaterialItem = {
+  id: number;
+  documentId: string;
+  room_type: string;
+  description?: string;
+  make?: string;
+  model?: string;
+  unit_cost: number;
+  qty: number;
+  createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string;
+};
+
+type RoomCostData = {
+  room_type: string;
+  total_cost: number;
+};
+
+export default function SummaryPage() {
+  const [summaryData, setSummaryData] = useState<RoomCostData[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        let allItems: AvMaterialItem[] = [];
+        let page = 1;
+        const pageSize = 100;
+
+        // Fetch all pages
+        while (true) {
+          const response = await axios.get<{
+            data: AvMaterialItem[];
+            meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
+          }>(`http://localhost:1337/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
+          console.log(`Page ${page} Response:`, response.data);
+
+          allItems = [...allItems, ...response.data.data];
+          const { pageCount, total } = response.data.meta.pagination;
+          console.log(`Page ${page}/${pageCount}, Total Items: ${allItems.length}/${total}`);
+
+          if (page >= pageCount) break;
+          page++;
+        }
+
+        console.log('All Items:', allItems);
+
+        const grouped: Record<string, number> = {};
+        allItems.forEach((item, index) => {
+          const { room_type, qty, unit_cost } = item;
+          const cost = typeof unit_cost === 'number' ? unit_cost : parseFloat(unit_cost) || 0;
+          const quantity = qty || 0;
+          const total = quantity * cost;
+          console.log(`Item ${index + 1}: Room: ${room_type}, Cost: ${cost}, Qty: ${quantity}, Total: ${total}`);
+          grouped[room_type] = (grouped[room_type] || 0) + total;
+        });
+
+        const formatted: RoomCostData[] = Object.entries(grouped).map(([room_type, total_cost]) => ({
+          room_type,
+          total_cost,
+        }));
+        console.log('Formatted Data:', formatted);
+
+        setSummaryData(formatted);
+      } catch (err) {
+        setError('Failed to fetch data. Please try again later.');
+        console.error('Fetch Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="container mx-auto p-6">
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">Room Cost Summary</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Table */}
+      {loading && <p className="text-gray-500 text-lg">Loading...</p>}
+      {error && <p className="text-red-500 text-lg mb-4">{error}</p>}
+
+      {!loading && !error && (
+        <div className="mb-12">
+          <div className="overflow-x-auto shadow-md rounded-lg">
+            <table className="min-w-full bg-white border border-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 border-b">Room Type</th>
+                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700 border-b">Total Cost (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summaryData.length > 0 ? (
+                  summaryData.map((room) => (
+                    <tr key={room.room_type} className="hover:bg-gray-100 transition-colors">
+                      <td className="px-4 py-2 text-sm text-gray-600 border-b">{room.room_type || 'Unknown'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
+                        ₹{room.total_cost.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="px-4 py-2 text-center text-sm text-gray-500 border-b">
+                      No data available
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+
+      {/* Bar Chart */}
+      {!loading && !error && summaryData.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-semibold mb-6 text-gray-800">Cost Distribution by Room Type</h2>
+          <div className="h-[400px] bg-white p-4 rounded-lg shadow-md">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={summaryData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="room_type" stroke="#374151" />
+                <YAxis stroke="#374151" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '4px' }}
+                />
+                <Legend />
+                <Bar dataKey="total_cost" fill="#2563eb" name="Total Cost (₹)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
