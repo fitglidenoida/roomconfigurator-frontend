@@ -5,43 +5,48 @@ import axios from 'axios';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
-// adjust the path if needed
 const Select = dynamic(() => import('react-select'), { ssr: false });
 
-type RoomType = {
+interface RoomType {
   id: number;
   name: string;
-};
+  [key: string]: unknown; // <-- add this
+}
 
-type AvComponent = {
+interface AvComponent {
   id: number;
   description: string;
   make: string;
   model: string;
-};
+  [key: string]: unknown; // <-- add this
+}
 
-type ConfigLine = {
+
+interface ConfigLine {
   room_type: number;
   sub_type: string;
   make: number;
   description: string;
   model: string;
   tech_space_guidelines: boolean;
-};
+}
 
-type SelectOption = {
+interface SelectOption {
   value: number;
   label: string;
   make: string;
   model: string;
-};
+}
 
-type StrapiItem<T> = {
+interface StrapiItem<T> {
   id: number;
   attributes: T;
-};
+}
 
-
+interface StrapiResponse<T> {
+  data: StrapiItem<T>[];
+  meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
+}
 
 export default function ConfiguratorForm() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -59,51 +64,47 @@ export default function ConfiguratorForm() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const fetchPaginated = async <T,>(url: string): Promise<StrapiItem<T>[]> => {
+      const fetchPaginated = async <T extends Record<string, unknown>>(url: string): Promise<StrapiItem<T>[]> => {
         const all: StrapiItem<T>[] = [];
         let page = 1;
         let pageCount = 1;
-      
+
         do {
-          const res = await axios.get(`${url}?pagination[page]=${page}&pagination[pageSize]=100`);
-          const data: StrapiItem<T>[] = res.data?.data || [];
+          const res = await axios.get<StrapiResponse<T>>(
+            `${url}?pagination[page]=${page}&pagination[pageSize]=100`
+          );
+          const data = res.data?.data || [];
           all.push(...data);
-      
           pageCount = res.data?.meta?.pagination?.pageCount || 1;
           page++;
         } while (page <= pageCount);
-      
+
         return all;
       };
-      
+
       try {
-        const roomData = await fetchPaginated<RoomType>('http://localhost:1337/api/room-types');
-        setRoomTypes(roomData.map((r) => ({
+        const roomData = await fetchPaginated<RoomType>('https://backend.sandyy.dev/api/room-types');
+        setRoomTypes(roomData.map((r: StrapiItem<RoomType>) => ({
           id: r.id,
           name: r.attributes.name
         })));
-        
-  
-        const avData = await fetchPaginated<AvComponent>('http://localhost:1337/api/av-components');
-        setAvComponents(avData.map((c) => ({
+
+        const avData = await fetchPaginated<AvComponent>('https://backend.sandyy.dev/api/av-components');
+        setAvComponents(avData.map((c: StrapiItem<AvComponent>) => ({
           id: c.id,
           description: c.attributes.description,
           make: c.attributes.make,
           model: c.attributes.model
         })));
-        
-      } catch (err) {
-        if (err instanceof Error) {
-          setError('Failed to fetch data: ' + err.message);
-        } else {
-          setError('Failed to fetch data.');
-        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        setError('Failed to fetch data: ' + errorMessage);
       }
     };
-  
+
     fetchData();
   }, []);
-    
+
   const addLine = () => {
     setConfigLines([...configLines, {
       room_type: 0,
@@ -155,7 +156,7 @@ export default function ConfiguratorForm() {
     }
 
     try {
-      await axios.post('http://localhost:1337/api/default-room-configs', {
+      await axios.post('https://backend.sandyy.dev/api/default-room-configs', {
         data: {
           room_type: selectedRoom.name,
           sub_type: line.sub_type,
@@ -168,19 +169,15 @@ export default function ConfiguratorForm() {
 
       setSuccess('Configuration saved!');
       setError(null);
-} catch (err: unknown) {
-  if (err instanceof Error) {
-    console.error('POST error:', err.message);
-    setError('Failed to save: ' + err.message);
-  } else {
-    setError('Failed to save.');
-  }
-  setSuccess(null);
-}
-
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Failed to save:', errorMessage);
+      setError('Failed to save: ' + errorMessage);
+      setSuccess(null);
+    }
   };
 
-  const getComponentOptions = () => {
+  const getComponentOptions = (): SelectOption[] => {
     return avComponents.map((comp) => ({
       value: comp.id,
       label: comp.description,
@@ -205,15 +202,14 @@ export default function ConfiguratorForm() {
       </div>
 
       <div className="pt-4">
-        {configLines.map((line, idx) => (
-          <div key={idx} className="mb-6 border-b pb-4">
+        {configLines.map((line, index) => (
+          <div key={index} className="mb-6 border-b pb-4">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {/* Room Type */}
               <div>
                 <label className="block text-sm font-medium mb-1">Room Type</label>
                 <select
                   value={line.room_type}
-                  onChange={(e) => updateLine(idx, 'room_type', parseInt(e.target.value))}
+                  onChange={(e) => updateLine(index, 'room_type', parseInt(e.target.value))}
                   className="w-full border px-3 py-2 rounded"
                 >
                   <option value={0}>Select Room Type</option>
@@ -222,13 +218,11 @@ export default function ConfiguratorForm() {
                   ))}
                 </select>
               </div>
-
-              {/* Sub Type */}
               <div>
                 <label className="block text-sm font-medium mb-1">Sub Type</label>
                 <select
                   value={line.sub_type}
-                  onChange={(e) => updateLine(idx, 'sub_type', e.target.value)}
+                  onChange={(e) => updateLine(index, 'sub_type', e.target.value)}
                   className="w-full border px-3 py-2 rounded"
                 >
                   <option value="Simplified">Simplified</option>
@@ -237,20 +231,16 @@ export default function ConfiguratorForm() {
                   <option value="Hybrid-allin">Hybrid-allin</option>
                 </select>
               </div>
-
-              {/* Searchable AV Component */}
               <div>
                 <label className="block text-sm font-medium mb-1">Component (Search)</label>
                 <Select
                   options={getComponentOptions()}
-                  onChange={(selected) => handleComponentSelect(idx, selected as SelectOption | null)}
+                  onChange={(selected: unknown) => handleComponentSelect(index, selected as SelectOption | null)}
                   value={getComponentOptions().find(opt => opt.value === line.make) || null}
                   placeholder="Search component..."
                   isClearable
                 />
               </div>
-
-              {/* Make */}
               <div>
                 <label className="block text-sm font-medium mb-1">Make</label>
                 <input
@@ -260,8 +250,6 @@ export default function ConfiguratorForm() {
                   className="w-full border px-3 py-2 bg-gray-100 rounded"
                 />
               </div>
-
-              {/* Model */}
               <div>
                 <label className="block text-sm font-medium mb-1">Model</label>
                 <input
@@ -272,26 +260,24 @@ export default function ConfiguratorForm() {
                 />
               </div>
             </div>
-
             <div className="flex items-center mt-6">
               <input
                 type="checkbox"
                 checked={line.tech_space_guidelines}
-                onChange={(e) => updateLine(idx, 'tech_space_guidelines', e.target.checked)}
+                onChange={(e) => updateLine(index, 'tech_space_guidelines', e.target.checked)}
                 className="mr-2"
               />
               <label className="text-sm font-medium">Within Tech Space Guidelines</label>
             </div>
-
             <div className="mt-3 flex gap-2">
-              <button onClick={() => saveLine(idx)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              <button onClick={() => saveLine(index)} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                 Save
               </button>
               <button onClick={addLine} className="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700">
                 +
               </button>
               <button
-                onClick={() => removeLine(idx)}
+                onClick={() => removeLine(index)}
                 disabled={configLines.length === 1}
                 className="bg-red-600 text-white px-3 py-2 rounded hover:bg-red-700 disabled:bg-gray-400"
               >
