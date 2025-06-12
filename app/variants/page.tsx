@@ -85,8 +85,8 @@ export default function Variants() {
         })));
 
         setLoading(false);
-      } catch (err: any) {
-        setError('Failed to fetch data: ' + (err.message || 'Unknown error'));
+    } catch (err) {
+        const errorMessage = (err as Error)?.message || 'Unknown error';
         console.error('Fetch Error:', err);
         setLoading(false);
       }
@@ -114,10 +114,11 @@ export default function Variants() {
           const uniqueSubTypes = [...new Set(allConfigs.map(config => config.sub_type))].sort();
           setSubTypes(uniqueSubTypes);
           setSelectedSubType(uniqueSubTypes[0] || '');
-        } catch (err: any) {
-          setError('Failed to fetch sub-types: ' + (err.message || 'Unknown error'));
-          console.error('Sub-Types Fetch Error:', err);
-        }
+        } catch (err) {
+            const errorMessage = (err as Error)?.message || 'Unknown error';
+            setError('Failed to fetch data: ' + errorMessage);
+            console.error('Fetch Error:', err);
+          }          
       };
       fetchSubTypes();
     } else {
@@ -157,11 +158,12 @@ export default function Variants() {
           });
 
           setComponents(compList);
-        } catch (err: any) {
-          setError('Failed to fetch components: ' + (err.message || 'Unknown error'));
-          console.error('Components Fetch Error:', err);
-        }
-      };
+        } catch (err) {
+            const errorMessage = (err as Error)?.message || 'Unknown error';
+            setError('Failed to fetch data: ' + errorMessage);
+            console.error('Fetch Error:', err);
+          }
+                };
       fetchComponents();
     } else {
       setComponents([]);
@@ -219,10 +221,12 @@ export default function Variants() {
       }
       alert('Variant submitted successfully!');
       setError(null);
-    } catch (err: any) {
-      setError('Failed to submit variant: ' + (err.message || 'Unknown error'));
-      console.error('Submit Error:', err);
-    }
+    } catch (err) {
+        const errorMessage = (err as Error)?.message || 'Unknown error';
+        setError('Failed to fetch data: ' + errorMessage);
+        console.error('Fetch Error:', err);
+      }
+      
   };
 
   return (
