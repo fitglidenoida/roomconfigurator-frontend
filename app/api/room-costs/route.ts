@@ -18,7 +18,7 @@ export async function GET() {
 
   while (true) {
     const response = await axios.get<{ data: AvBOMItem[]; meta: { pagination: { pageCount: number } } }>(
-      `http://backend.sandyy.dev/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+      `https://backend.sandyy.dev/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`
     );
     allItems.push(...response.data.data);
     const { pageCount } = response.data.meta.pagination;

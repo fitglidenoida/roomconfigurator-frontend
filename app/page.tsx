@@ -58,7 +58,7 @@ export default function RoomConfigurator() {
           const response = await axios.get<{
             data: RoomConfigurationItem[];
             meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-          }>(`http://localhost:1337/api/room-configurations?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
+          }>(`https://backend.sandyy.dev/api/room-configurations?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
           allRoomConfigs = [...allRoomConfigs, ...response.data.data];
           const { pageCount } = response.data.meta.pagination;
           console.log(`Room Configs Page ${page}/${pageCount}, Total Items: ${allRoomConfigs.length}`);
@@ -75,7 +75,7 @@ export default function RoomConfigurator() {
           const response = await axios.get<{
             data: AvMaterialItem[];
             meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-          }>(`http://localhost:1337/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
+          }>(`https://backend.sandyy.dev/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
           const items = response.data.data.filter(item => !roomConfigRoomTypes.has(item.room_type));
           allBoMItems = [...allBoMItems, ...items];
           const { pageCount } = response.data.meta.pagination;
