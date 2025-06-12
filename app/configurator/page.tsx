@@ -29,6 +29,14 @@ type ConfigLine = {
   tech_space_guidelines: boolean;
 };
 
+type SelectOption = {
+  value: number;
+  label: string;
+  make: string;
+  model: string;
+};
+
+
 export default function ConfiguratorForm() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
   const [avComponents, setAvComponents] = useState<AvComponent[]>([]);
@@ -66,20 +74,26 @@ export default function ConfiguratorForm() {
         const roomRes = await axios.get('http://localhost:1337/api/room-types');
         const avData = await fetchPaginated('http://localhost:1337/api/av-components');
 
-        setRoomTypes(roomRes.data.data.map((r: any) => ({
+        type RoomTypeAPI = { id: number; name: string };
+        setRoomTypes(roomRes.data.data.map((r: RoomTypeAPI) => ({
           id: r.id,
           name: r.name
         })));
-
-        setAvComponents(avData.map((c: any) => ({
+        
+        setAvComponents(avData.map((c: AvComponent) => ({
           id: c.id,
           description: c.description,
           make: c.make,
           model: c.model
         })));
-      } catch (err: any) {
-        setError('Failed to fetch data from Strapi: ' + err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError('Failed to fetch data from Strapi: ' + err.message);
+        } else {
+          setError('Failed to fetch data from Strapi.');
+        }
       }
+      
     };
 
     fetchData();
@@ -103,13 +117,13 @@ export default function ConfiguratorForm() {
     }
   };
 
-  const updateLine = (index: number, field: keyof ConfigLine, value: any) => {
+  const updateLine = (index: number, field: keyof ConfigLine, value: string | number | boolean) => {
     const updated = [...configLines];
     updated[index] = { ...updated[index], [field]: value };
     setConfigLines(updated);
   };
 
-  const handleComponentSelect = (index: number, selected: any) => {
+  const handleComponentSelect = (index: number, selected: SelectOption | null) => {
     const updated = [...configLines];
 
     if (selected === null) {
@@ -149,11 +163,16 @@ export default function ConfiguratorForm() {
 
       setSuccess('Configuration saved!');
       setError(null);
-    } catch (err: any) {
-      console.error('POST error:', err.response?.data || err.message);
-      setError('Failed to save: ' + (err.response?.data?.error?.message || err.message));
-      setSuccess(null);
-    }
+} catch (err: unknown) {
+  if (err instanceof Error) {
+    console.error('POST error:', err.message);
+    setError('Failed to save: ' + err.message);
+  } else {
+    setError('Failed to save.');
+  }
+  setSuccess(null);
+}
+
   };
 
   const getComponentOptions = () => {
