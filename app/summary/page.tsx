@@ -19,6 +19,16 @@ type AvMaterialItem = {
   createdAt?: string;
 };
 
+type ExcelRow = {
+  room_type?: string;
+  description?: string;
+  make?: string;
+  model?: string;
+  qty?: number;
+  unit_cost?: number;
+};
+
+
 type RoomConfigurationItem = {
   id: number;
   documentId: string;
@@ -103,7 +113,7 @@ export default function SummaryPage() {
 
       Object.entries(roomConfigGroups).forEach(([room_type, components]) => {
         let roomTotal = 0;
-        Object.entries(components).forEach(([_, { totalPrice, count, totalQty }]) => {
+        Object.entries(components).forEach(([, { totalPrice, count, totalQty }]) => {
           const avgUnitPrice = count > 0 ? totalPrice / count : 0;
           roomTotal += avgUnitPrice * totalQty;
         });
@@ -143,7 +153,7 @@ export default function SummaryPage() {
           componentGroups[key].totalQty += qty;
         });
 
-        Object.entries(componentGroups).forEach(([_, { totalCost, count, totalQty }]) => {
+        Object.entries(componentGroups).forEach(([, { totalCost, count, totalQty }]) => {
           const avgUnitCost = count > 0 ? totalCost / count : 0;
           roomTotal += avgUnitCost * totalQty;
         });
@@ -189,15 +199,15 @@ export default function SummaryPage() {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+        const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json<ExcelRow>(sheet);
 
         const transformedData = jsonData.map((row) => ({
           room_type: row['room_type'] || '',
           description: row['description'] || '',
           make: row['make'] || '',
           model: row['model'] || '',
-          qty: parseInt(row['qty']) || 0,
-          unit_cost: parseFloat(row['unit_cost']) || 0,
+          qty: row['qty'] || 0,
+          unit_cost: row['unit_cost'] || 0,
         }));
 
         console.log('Transformed JSON:', transformedData);
