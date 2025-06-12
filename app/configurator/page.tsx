@@ -238,7 +238,7 @@ export default function ConfiguratorForm() {
                 <label className="block text-sm font-medium mb-1">Component (Search)</label>
                 <Select
                   options={getComponentOptions()}
-                  onChange={(selected) => handleComponentSelect(idx, selected)}
+                  onChange={(selected) => handleComponentSelect(idx, selected as SelectOption | null)}
                   value={getComponentOptions().find(opt => opt.value === line.make) || null}
                   placeholder="Search component..."
                   isClearable
