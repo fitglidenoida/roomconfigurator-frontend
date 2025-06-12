@@ -65,7 +65,7 @@ export default function SummaryPage() {
         const response = await axios.get<{
           data: RoomConfigurationItem[];
           meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-        }>(`http://localhost:1337/api/room-configurations?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
+        }>(`http://backend.sandyy.dev/api/room-configurations?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
         allRoomConfigs = [...allRoomConfigs, ...response.data.data];
         const { pageCount } = response.data.meta.pagination;
         console.log(`Room Configs Page ${page}/${pageCount}, Total Items: ${allRoomConfigs.length}`);
@@ -82,7 +82,7 @@ export default function SummaryPage() {
         const response = await axios.get<{
           data: AvMaterialItem[];
           meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-        }>(`http://localhost:1337/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
+        }>(`http://backend.sandyy.dev/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
         const items = response.data.data.filter(item => !roomConfigRoomTypes.has(item.room_type));
         allBoMItems = [...allBoMItems, ...items];
         const { pageCount } = response.data.meta.pagination;
@@ -213,7 +213,7 @@ export default function SummaryPage() {
         console.log('Transformed JSON:', transformedData);
 
         for (const item of transformedData) {
-          await axios.post('http://localhost:1337/api/av-bill-of-materials', {
+          await axios.post('http://backend.sandyy.dev/api/av-bill-of-materials', {
             data: item,
           });
         }

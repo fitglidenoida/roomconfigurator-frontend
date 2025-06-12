@@ -54,7 +54,7 @@ export default function Variants() {
 
         // Fetch all default room configs
         while (true) {
-          const response = await axios.get(`http://localhost:1337/api/default-room-configs?pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
+          const response = await axios.get(`http://backend.sandyy.dev/api/default-room-configs?pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
           allConfigs = [...allConfigs, ...(response.data.data || [])];
           const { pageCount } = response.data.meta.pagination || { pageCount: 1 };
           if (page >= pageCount) break;
@@ -64,7 +64,7 @@ export default function Variants() {
         // Fetch all AV components
         page = 1;
         while (true) {
-          const response = await axios.get(`http://localhost:1337/api/av-components?pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
+          const response = await axios.get(`http://backend.sandyy.dev/api/av-components?pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
           allAvComponents = [...allAvComponents, ...(response.data.data || [])];
           const { pageCount } = response.data.meta.pagination || { pageCount: 1 };
           if (page >= pageCount) break;
@@ -104,7 +104,7 @@ export default function Variants() {
           const pageSize = 100;
 
           while (true) {
-            const response = await axios.get(`http://localhost:1337/api/default-room-configs?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}&pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
+            const response = await axios.get(`http://backend.sandyy.dev/api/default-room-configs?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}&pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
             allConfigs = [...allConfigs, ...(response.data.data || [])];
             const { pageCount } = response.data.meta.pagination || { pageCount: 1 };
             if (page >= pageCount) break;
@@ -137,7 +137,7 @@ export default function Variants() {
           const pageSize = 100;
 
           while (true) {
-            const response = await axios.get(`http://localhost:1337/api/default-room-configs?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}&pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
+            const response = await axios.get(`http://backend.sandyy.dev/api/default-room-configs?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}&pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
             allConfigs = [...allConfigs, ...(response.data.data || [])];
             const { pageCount } = response.data.meta.pagination || { pageCount: 1 };
             if (page >= pageCount) break;
@@ -207,7 +207,7 @@ export default function Variants() {
 
     try {
       for (const comp of selectedComponents) {
-        await axios.post('http://localhost:1337/api/room-configurations', {
+        await axios.post('http://backend.sandyy.dev/api/room-configurations', {
           data: {
             room_type: selectedRoomType,
             sub_type: selectedSubType,
