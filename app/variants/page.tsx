@@ -86,7 +86,7 @@ export default function Variants() {
 
         setLoading(false);
     } catch (err) {
-        const errorMessage = (err as Error)?.message || 'Unknown error';
+        setError('Failed to fetch data: ' + ((err as Error)?.message || 'Unknown error'));
         console.error('Fetch Error:', err);
         setLoading(false);
       }
@@ -225,7 +225,7 @@ export default function Variants() {
         const errorMessage = (err as Error)?.message || 'Unknown error';
         setError('Failed to fetch data: ' + errorMessage);
         console.error('Fetch Error:', err);
-      }
+      }      
       
   };
 
