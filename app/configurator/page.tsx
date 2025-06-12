@@ -36,6 +36,12 @@ type SelectOption = {
   model: string;
 };
 
+type StrapiItem<T> = {
+  id: number;
+  attributes: T;
+};
+
+
 
 export default function ConfiguratorForm() {
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -53,52 +59,51 @@ export default function ConfiguratorForm() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const fetchPaginated = async (url: string): Promise<any[]> => {
-        let all: any[] = [];
+      const fetchPaginated = async <T,>(url: string): Promise<StrapiItem<T>[]> => {
+        const all: StrapiItem<T>[] = [];
         let page = 1;
         let pageCount = 1;
-
+      
         do {
           const res = await axios.get(`${url}?pagination[page]=${page}&pagination[pageSize]=100`);
-          const data = res.data?.data || [];
-          all = [...all, ...data];
-
+          const data: StrapiItem<T>[] = res.data?.data || [];
+          all.push(...data);
+      
           pageCount = res.data?.meta?.pagination?.pageCount || 1;
           page++;
         } while (page <= pageCount);
-
+      
         return all;
       };
-
+      
       try {
-        const roomRes = await axios.get('http://localhost:1337/api/room-types');
-        const avData = await fetchPaginated('http://localhost:1337/api/av-components');
-
-        type RoomTypeAPI = { id: number; name: string };
-        setRoomTypes(roomRes.data.data.map((r: RoomTypeAPI) => ({
+        const roomData = await fetchPaginated<RoomType>('http://localhost:1337/api/room-types');
+        setRoomTypes(roomData.map((r) => ({
           id: r.id,
-          name: r.name
+          name: r.attributes.name
         })));
         
-        setAvComponents(avData.map((c: AvComponent) => ({
+  
+        const avData = await fetchPaginated<AvComponent>('http://localhost:1337/api/av-components');
+        setAvComponents(avData.map((c) => ({
           id: c.id,
-          description: c.description,
-          make: c.make,
-          model: c.model
+          description: c.attributes.description,
+          make: c.attributes.make,
+          model: c.attributes.model
         })));
-      } catch (err: unknown) {
+        
+      } catch (err) {
         if (err instanceof Error) {
-          setError('Failed to fetch data from Strapi: ' + err.message);
+          setError('Failed to fetch data: ' + err.message);
         } else {
-          setError('Failed to fetch data from Strapi.');
+          setError('Failed to fetch data.');
         }
       }
-      
     };
-
+  
     fetchData();
   }, []);
-
+    
   const addLine = () => {
     setConfigLines([...configLines, {
       room_type: 0,
