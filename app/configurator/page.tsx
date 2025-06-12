@@ -38,10 +38,9 @@ interface SelectOption {
   model: string;
 }
 
-interface StrapiItem<T> {
-  id: number;
-  attributes: T;
-}
+type StrapiItem<T> = T & { id: number };
+
+
 
 interface StrapiResponse<T> {
   data: StrapiItem<T>[];
@@ -84,19 +83,22 @@ export default function ConfiguratorForm() {
 
       try {
         const roomData = await fetchPaginated<RoomType>('https://backend.sandyy.dev/api/room-types');
-        setRoomTypes(roomData.map((r: StrapiItem<RoomType>) => ({
+        setRoomTypes(roomData.map((r) => ({
           id: r.id,
-          name: r.attributes.name
+          name: r.name,
         })));
+        
+                
 
         const avData = await fetchPaginated<AvComponent>('https://backend.sandyy.dev/api/av-components');
-        setAvComponents(avData.map((c: StrapiItem<AvComponent>) => ({
+        setAvComponents(avData.map((c) => ({
           id: c.id,
-          description: c.attributes.description,
-          make: c.attributes.make,
-          model: c.attributes.model
+          description: c.description,
+          make: c.make,
+          model: c.model,
         })));
-      } catch (err: unknown) {
+        
+        } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         setError('Failed to fetch data: ' + errorMessage);
       }
