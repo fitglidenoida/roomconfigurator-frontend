@@ -106,7 +106,7 @@ export default function RoomConfigurator() {
 
         Object.entries(roomConfigGroups).forEach(([room_type, components]) => {
           let roomTotal = 0;
-          Object.entries(components).forEach(([_, { totalPrice, count, totalQty }]) => {
+          Object.entries(components).forEach(([, { totalPrice, count, totalQty }]) => {
             const avgUnitPrice = count > 0 ? totalPrice / count : 0;
             roomTotal += avgUnitPrice * totalQty;
           });
@@ -146,7 +146,7 @@ export default function RoomConfigurator() {
             componentGroups[key].totalQty += qty;
           });
 
-          Object.entries(componentGroups).forEach(([_, { totalCost, count, totalQty }]) => {
+          Object.entries(componentGroups).forEach(([, { totalCost, count, totalQty }]) => {
             const avgUnitCost = count > 0 ? totalCost / count : 0;
             roomTotal += avgUnitCost * totalQty;
           });
