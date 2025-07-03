@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 type DefaultRoomConfig = {
-  id: number;
+  id: number;          // Strapi’s internal template id
+  documentId: string;  // ← primary key in v5
   room_type: string;
   sub_type: string;
   description: string;
@@ -15,6 +16,7 @@ type DefaultRoomConfig = {
   tech_space_guidelines: boolean;
   qty: number;
 };
+
 
 type AvComponent = {
   id: number;
@@ -160,15 +162,17 @@ useEffect(() => {
             ac.make === def.make &&
             ac.model === def.model
         );
-        return {
-          id: def.id,              // id in default-room-configs
-          description: def.description,
-          make: def.make,
-          model: def.model,
-          qty: def.qty ?? 1,
-          unit_cost: av?.unit_cost || 0,
-          selected: true,         // every row in the DB is checked
-        };
+return {
+  id: def.id,                 // numeric – fine for React key
+  documentId: def.documentId, // 👉  primary key in Strapi v5
+  description: def.description,
+  make: def.make,
+  model: def.model,
+  qty: def.qty ?? 1,
+  unit_cost: av?.unit_cost || 0,
+  selected: true,
+};
+
       });
 
       setComponents(list);
