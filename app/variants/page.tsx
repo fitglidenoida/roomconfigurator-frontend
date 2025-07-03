@@ -232,23 +232,26 @@ const submitVariant = async () => {
   try {
     setError(null);
 
+    /* what the user left checked / unchecked */
     const toKeep   = components.filter(c => c.selected);
     const toDelete = components.filter(c => !c.selected);
 
     const ops: Promise<unknown>[] = [];
 
-    // DELETE unchecked rows by numeric id
+    /* 1️⃣ DELETE every unchecked row – Strapi v5 wants the *documentId*  */
     toDelete.forEach(row => {
-      ops.push(
-        axios.delete(
-          `https://backend.sandyy.dev/api/default-room-configs/${row.id}`
-        )
-      );
+      if (row.documentId) {
+        ops.push(
+          axios.delete(
+            `https://backend.sandyy.dev/api/default-room-configs/${row.documentId}`
+          )
+        );
+      }
     });
 
-    // POST rows that have no numeric id yet (brand-new)
+    /* 2️⃣ POST any newly-checked row that still has no documentId */
     toKeep
-      .filter(r => !r.id)      // id undefined / 0 ⇒ not stored yet
+      .filter(r => !r.documentId)          // brand-new – not in DB yet
       .forEach(r => {
         ops.push(
           axios.post('https://backend.sandyy.dev/api/default-room-configs', {
@@ -268,8 +271,8 @@ const submitVariant = async () => {
 
     alert('Template updated!');
 
-    // Refresh list
-    setSelectedSubType(selectedSubType);   // triggers fetchComponents again
+    /* 3️⃣ refresh the table so UI matches the DB */
+    setSelectedSubType(selectedSubType);   // retriggers fetchComponents
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(err);
