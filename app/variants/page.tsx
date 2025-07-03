@@ -201,19 +201,19 @@ const submitVariant = async () => {
 
   const selected = components.filter(c => c.selected);
   if (selected.length === 0) {
-    setError('Select at least one component to submit.');
+    setError('Select at least one component.');
     return;
   }
 
   try {
     setError(null);
 
-    /* 1️⃣  fetch everything that already exists for this variant */
+    /* 1️⃣  fetch rows that already exist for this template variant */
     const existingRes = await axios.get(
-      `https://backend.sandyy.dev/api/room-configurations` +
-      `?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}` +
-      `&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}` +
-      `&pagination[pageSize]=100`          // unlikely >100 but adjust if needed
+      `https://backend.sandyy.dev/api/default-room-configs` +
+        `?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}` +
+        `&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}` +
+        `&pagination[pageSize]=100`
     );
 
     type Stored = {
@@ -222,38 +222,40 @@ const submitVariant = async () => {
       make: string;
       model: string;
       qty: number;
-      unit_price: number;
     };
 
     const existing: Stored[] = existingRes.data.data ?? [];
 
-    /* 2️⃣  helper to compare rows */
-    const makeKey = (d: {description:string, make:string, model:string}) =>
+    /* 2️⃣  quick key helper */
+    const makeKey = (d: { description: string; make: string; model: string }) =>
       `${d.description}|${d.make}|${d.model}`;
 
     const existingMap = new Map(existing.map(e => [makeKey(e), e]));
 
-    /* 3️⃣  build three buckets: PUT, POST, DELETE */
+    /* 3️⃣  build PUT, POST, DELETE work lists */
     const ops: Promise<any>[] = [];
 
-    // a) PUT or skip
+    // a) rows that stay selected → PUT (update qty) or skip if qty unchanged
     for (const sel of selected) {
       const k = makeKey(sel);
       const match = existingMap.get(k);
+
       if (match) {
-        // only update if something actually changed
-        if (match.qty !== sel.qty || match.unit_price !== sel.unit_cost) {
+        if (match.qty !== sel.qty) {
           ops.push(
-            axios.put(`https://backend.sandyy.dev/api/room-configurations/${match.id}`, {
-              data: { qty: sel.qty, unit_price: sel.unit_cost }
-            })
+            axios.put(
+              `https://backend.sandyy.dev/api/default-room-configs/${match.id}`,
+              {
+                data: { qty: sel.qty }, // only field you actually change
+              }
+            )
           );
         }
-        existingMap.delete(k);           // mark as handled
+        existingMap.delete(k); // handled
       } else {
-        // b) needs insert
+        // b) brand-new component → POST
         ops.push(
-          axios.post('https://backend.sandyy.dev/api/room-configurations', {
+          axios.post('https://backend.sandyy.dev/api/default-room-configs', {
             data: {
               room_type: selectedRoomType,
               sub_type: selectedSubType,
@@ -261,27 +263,28 @@ const submitVariant = async () => {
               make: sel.make,
               model: sel.model,
               qty: sel.qty,
-              unit_price: sel.unit_cost
-            }
+            },
           })
         );
       }
     }
 
-    // c) whatever is left in existingMap was **unselected** → delete
-    existingMap.forEach(stale =>
+    // c) whatever remains in existingMap was unchecked → DELETE
+    existingMap.forEach(row =>
       ops.push(
-        axios.delete(`https://backend.sandyy.dev/api/room-configurations/${stale.id}`)
+        axios.delete(
+          `https://backend.sandyy.dev/api/default-room-configs/${row.id}`
+        )
       )
     );
 
-    /* 4️⃣  run them in parallel */
+    /* 4️⃣  run everything in parallel, then refresh local state */
     await Promise.all(ops);
 
-    alert('Variant synced successfully!');
+    alert('Template variant saved to default-room-configs!');
   } catch (err: any) {
     console.error('Sync error', err);
-    setError('Failed to sync variant: ' + (err?.message || 'unknown error'));
+    setError('Failed to sync template: ' + (err?.message || 'unknown error'));
   }
 };
 
