@@ -193,41 +193,97 @@ export default function Variants() {
     setVariants([]);
   };
 
-  const submitVariant = async () => {
-    if (!selectedRoomType || !selectedSubType || components.length === 0) {
-      setError('Please select a room type, sub-type, and at least one component.');
-      return;
-    }
+const submitVariant = async () => {
+  if (!selectedRoomType || !selectedSubType) {
+    setError('Select a room type and sub-type first.');
+    return;
+  }
 
-    const selectedComponents = components.filter(comp => comp.selected);
-    if (selectedComponents.length === 0) {
-      setError('Please select at least one component.');
-      return;
-    }
+  const selected = components.filter(c => c.selected);
+  if (selected.length === 0) {
+    setError('Select at least one component to submit.');
+    return;
+  }
 
-    try {
-      for (const comp of selectedComponents) {
-        await axios.post('https://backend.sandyy.dev/api/room-configurations', {
-          data: {
-            room_type: selectedRoomType,
-            sub_type: selectedSubType,
-            description: comp.description,
-            make: comp.make,
-            model: comp.model,
-            qty: comp.qty,
-            unit_price: comp.unit_cost,
-          },
-        });
+  try {
+    setError(null);
+
+    /* 1️⃣  fetch everything that already exists for this variant */
+    const existingRes = await axios.get(
+      `https://backend.sandyy.dev/api/room-configurations` +
+      `?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}` +
+      `&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}` +
+      `&pagination[pageSize]=100`          // unlikely >100 but adjust if needed
+    );
+
+    type Stored = {
+      id: number;
+      description: string;
+      make: string;
+      model: string;
+      qty: number;
+      unit_price: number;
+    };
+
+    const existing: Stored[] = existingRes.data.data ?? [];
+
+    /* 2️⃣  helper to compare rows */
+    const makeKey = (d: {description:string, make:string, model:string}) =>
+      `${d.description}|${d.make}|${d.model}`;
+
+    const existingMap = new Map(existing.map(e => [makeKey(e), e]));
+
+    /* 3️⃣  build three buckets: PUT, POST, DELETE */
+    const ops: Promise<any>[] = [];
+
+    // a) PUT or skip
+    for (const sel of selected) {
+      const k = makeKey(sel);
+      const match = existingMap.get(k);
+      if (match) {
+        // only update if something actually changed
+        if (match.qty !== sel.qty || match.unit_price !== sel.unit_cost) {
+          ops.push(
+            axios.put(`https://backend.sandyy.dev/api/room-configurations/${match.id}`, {
+              data: { qty: sel.qty, unit_price: sel.unit_cost }
+            })
+          );
+        }
+        existingMap.delete(k);           // mark as handled
+      } else {
+        // b) needs insert
+        ops.push(
+          axios.post('https://backend.sandyy.dev/api/room-configurations', {
+            data: {
+              room_type: selectedRoomType,
+              sub_type: selectedSubType,
+              description: sel.description,
+              make: sel.make,
+              model: sel.model,
+              qty: sel.qty,
+              unit_price: sel.unit_cost
+            }
+          })
+        );
       }
-      alert('Variant submitted successfully!');
-      setError(null);
-    } catch (err) {
-        const errorMessage = (err as Error)?.message || 'Unknown error';
-        setError('Failed to fetch data: ' + errorMessage);
-        console.error('Fetch Error:', err);
-      }      
-      
-  };
+    }
+
+    // c) whatever is left in existingMap was **unselected** → delete
+    existingMap.forEach(stale =>
+      ops.push(
+        axios.delete(`https://backend.sandyy.dev/api/room-configurations/${stale.id}`)
+      )
+    );
+
+    /* 4️⃣  run them in parallel */
+    await Promise.all(ops);
+
+    alert('Variant synced successfully!');
+  } catch (err: any) {
+    console.error('Sync error', err);
+    setError('Failed to sync variant: ' + (err?.message || 'unknown error'));
+  }
+};
 
   return (
     <div className="container mx-auto p-6">
