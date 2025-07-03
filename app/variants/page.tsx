@@ -128,46 +128,58 @@ export default function Variants() {
   }, [selectedRoomType]);
 
   // Update components when room type and sub-type change
-  useEffect(() => {
-    if (selectedRoomType && selectedSubType) {
-      const fetchComponents = async () => {
-        try {
-          let allConfigs: DefaultRoomConfig[] = [];
-          let page = 1;
-          const pageSize = 100;
+useEffect(() => {
+  if (!selectedRoomType || !selectedSubType) {
+    setComponents([]);
+    return;
+  }
 
-          while (true) {
-            const response = await axios.get(`https://backend.sandyy.dev/api/default-room-configs?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}&pagination[page]=${page.toString()}&pagination[pageSize]=${pageSize}`);
-            allConfigs = [...allConfigs, ...(response.data.data || [])];
-            const { pageCount } = response.data.meta.pagination || { pageCount: 1 };
-            if (page >= pageCount) break;
-            page++;
-          }
+  const pageSize = 100;
 
-          const compList = allConfigs.map(config => {
-            const avComp = avComponents.find(ac => ac.description === config.description && ac.make === config.make && ac.model === config.model);
-            return {
-              id: config.id,
-              description: config.description,
-              make: config.make,
-              model: config.model,
-              qty: config.qty || 1,
-              unit_cost: avComp?.unit_cost || 0,
-              selected: true,
-            };
-          });
+  const fetchComponents = async () => {
+    try {
+      // pull only the records that ACTUALLY exist in the collection
+      let rows: DefaultRoomConfig[] = [];
+      let page = 1;
+      while (true) {
+        const res = await axios.get(
+          `https://backend.sandyy.dev/api/default-room-configs` +
+            `?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}` +
+            `&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}` +
+            `&pagination[page]=${page}&pagination[pageSize]=${pageSize}`
+        );
+        rows = rows.concat(res.data.data || []);
+        if (page >= (res.data.meta.pagination?.pageCount || 1)) break;
+        page++;
+      }
 
-          setComponents(compList);
-        } catch (err) {
-            const errorMessage = (err as Error)?.message || 'Unknown error';
-            setError('Failed to fetch data: ' + errorMessage);
-            console.error('Fetch Error:', err);
-          }
-                };
-      fetchComponents();
-    } else {
-      setComponents([]);
+      const list = rows.map(def => {
+        const av = avComponents.find(
+          ac =>
+            ac.description === def.description &&
+            ac.make === def.make &&
+            ac.model === def.model
+        );
+        return {
+          id: def.id,              // id in default-room-configs
+          description: def.description,
+          make: def.make,
+          model: def.model,
+          qty: def.qty ?? 1,
+          unit_cost: av?.unit_cost || 0,
+          selected: true,         // every row in the DB is checked
+        };
+      });
+
+      setComponents(list);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError('Failed to load components: ' + msg);
+      console.error(err);
     }
+  };
+
+  fetchComponents();
   }, [selectedRoomType, selectedSubType, avComponents]);
 
   const toggleComponent = (id: number) => {
@@ -199,92 +211,54 @@ const submitVariant = async () => {
     return;
   }
 
-  const selected = components.filter(c => c.selected);
-  if (selected.length === 0) {
-    setError('Select at least one component.');
-    return;
-  }
-
   try {
     setError(null);
 
-    /* 1️⃣  fetch rows that already exist for this template variant */
-    const existingRes = await axios.get(
-      `https://backend.sandyy.dev/api/default-room-configs` +
-        `?filters[room_type][$eq]=${encodeURIComponent(selectedRoomType)}` +
-        `&filters[sub_type][$eq]=${encodeURIComponent(selectedSubType)}` +
-        `&pagination[pageSize]=100`
-    );
+    // 1️⃣ fetch the current rows (they match `components`)
+    const current = components;                          // already in state
+    const toKeep   = current.filter(c => c.selected);    // still checked
+    const toDelete = current.filter(c => !c.selected);   // unchecked
 
-    type Stored = {
-      id: number;
-      description: string;
-      make: string;
-      model: string;
-      qty: number;
-    };
-
-    const existing: Stored[] = existingRes.data.data ?? [];
-
-    /* 2️⃣  quick key helper */
-    const makeKey = (d: { description: string; make: string; model: string }) =>
-      `${d.description}|${d.make}|${d.model}`;
-
-    const existingMap = new Map(existing.map(e => [makeKey(e), e]));
-
-    /* 3️⃣  build PUT, POST, DELETE work lists */
     const ops: Promise<any>[] = [];
 
-    // a) rows that stay selected → PUT (update qty) or skip if qty unchanged
-    for (const sel of selected) {
-      const k = makeKey(sel);
-      const match = existingMap.get(k);
+    // 2️⃣ DELETE everything that was unchecked
+    toDelete.forEach(row => {
+      ops.push(
+        axios.delete(
+          `https://backend.sandyy.dev/api/default-room-configs/${row.id}`
+        )
+      );
+    });
 
-      if (match) {
-        if (match.qty !== sel.qty) {
-          ops.push(
-            axios.put(
-              `https://backend.sandyy.dev/api/default-room-configs/${match.id}`,
-              {
-                data: { qty: sel.qty }, // only field you actually change
-              }
-            )
-          );
-        }
-        existingMap.delete(k); // handled
-      } else {
-        // b) brand-new component → POST
+    // 3️⃣ POST anything that is checked **but has no id yet**
+    // (i.e. newly-added rows in future; for now this is rare)
+    toKeep
+      .filter(r => typeof r.id !== 'number')             // no DB id
+      .forEach(r => {
         ops.push(
           axios.post('https://backend.sandyy.dev/api/default-room-configs', {
             data: {
               room_type: selectedRoomType,
               sub_type: selectedSubType,
-              description: sel.description,
-              make: sel.make,
-              model: sel.model,
-              qty: sel.qty,
+              description: r.description,
+              make: r.make,
+              model: r.model,
+              qty: r.qty,
             },
           })
         );
-      }
-    }
+      });
 
-    // c) whatever remains in existingMap was unchecked → DELETE
-    existingMap.forEach(row =>
-      ops.push(
-        axios.delete(
-          `https://backend.sandyy.dev/api/default-room-configs/${row.id}`
-        )
-      )
-    );
-
-    /* 4️⃣  run everything in parallel, then refresh local state */
     await Promise.all(ops);
 
-    alert('Template variant saved to default-room-configs!');
-  } catch (err: any) {
-    console.error('Sync error', err);
-    setError('Failed to sync template: ' + (err?.message || 'unknown error'));
+    alert('Template updated!');
+
+    // 4️⃣ reload list so the table reflects the DB
+    setSelectedSubType(selectedSubType);   // triggers fetchComponents
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(err);
+    setError('Failed to update template: ' + msg);
   }
 };
 
