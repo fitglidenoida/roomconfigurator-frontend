@@ -6,14 +6,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 type DefaultRoomConfig = {
-  id: number;          // Strapi’s internal template id
-  documentId: string;  // ← primary key in v5
+  id: number;          // internal numeric
+  documentId: string;  // UID (primary key)
   room_type: string;
   sub_type: string;
   description: string;
   make: string;
   model: string;
-  tech_space_guidelines: boolean;
+  tech_space_guidelines: boolean | null;
   qty: number;
 };
 
@@ -26,19 +26,32 @@ type AvComponent = {
   unit_cost: number;
 };
 
+type ComponentRow = {
+  id: number;          // numeric template id (good for React key)
+  documentId: string;  // UID used for DELETE / PUT
+  description: string;
+  make: string;
+  model: string;
+  qty: number;
+  unit_cost: number;
+  selected: boolean;
+};
+
 type Variant = {
   room_type: string;
   sub_type: string;
-  components: { id: number; description: string; make: string; model: string; qty: number; unit_cost: number; selected: boolean }[];
+  components: ComponentRow[];
   total_cost: number;
 };
+
+
 
 export default function Variants() {
   const [roomTypes, setRoomTypes] = useState<string[]>([]);
   const [subTypes, setSubTypes] = useState<string[]>([]);
   const [selectedRoomType, setSelectedRoomType] = useState<string>('');
   const [selectedSubType, setSelectedSubType] = useState<string>('');
-  const [components, setComponents] = useState<{ id: number; description: string; make: string; model: string; qty: number; unit_cost: number; selected: boolean }[]>([]);
+  const [components, setComponents] = useState<ComponentRow[]>([]);
   const [avComponents, setAvComponents] = useState<AvComponent[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -163,15 +176,16 @@ useEffect(() => {
             ac.model === def.model
         );
 return {
-  id: def.id,                 // numeric – fine for React key
-  documentId: def.documentId, // 👉  primary key in Strapi v5
+  id:          def.id,
+  documentId:  def.documentId,
   description: def.description,
-  make: def.make,
-  model: def.model,
-  qty: def.qty ?? 1,
-  unit_cost: av?.unit_cost || 0,
-  selected: true,
+  make:        def.make,
+  model:       def.model,
+  qty:         def.qty ?? 1,
+  unit_cost:   av?.unit_cost || 0,
+  selected:    true,
 };
+
 
       });
 
@@ -218,14 +232,12 @@ const submitVariant = async () => {
   try {
     setError(null);
 
-    // 1️⃣ fetch the current rows (they match `components`)
-    const current = components;                          // already in state
-    const toKeep   = current.filter(c => c.selected);    // still checked
-    const toDelete = current.filter(c => !c.selected);   // unchecked
+    const toKeep   = components.filter(c => c.selected);
+    const toDelete = components.filter(c => !c.selected);
 
-    const ops: Promise<any>[] = [];
+    const ops: Promise<unknown>[] = [];
 
-    // 2️⃣ DELETE everything that was unchecked
+    // DELETE unchecked rows by numeric id
     toDelete.forEach(row => {
       ops.push(
         axios.delete(
@@ -234,20 +246,19 @@ const submitVariant = async () => {
       );
     });
 
-    // 3️⃣ POST anything that is checked **but has no id yet**
-    // (i.e. newly-added rows in future; for now this is rare)
+    // POST rows that have no numeric id yet (brand-new)
     toKeep
-      .filter(r => typeof r.id !== 'number')             // no DB id
+      .filter(r => !r.id)      // id undefined / 0 ⇒ not stored yet
       .forEach(r => {
         ops.push(
           axios.post('https://backend.sandyy.dev/api/default-room-configs', {
             data: {
-              room_type: selectedRoomType,
-              sub_type: selectedSubType,
+              room_type:   selectedRoomType,
+              sub_type:    selectedSubType,
               description: r.description,
-              make: r.make,
-              model: r.model,
-              qty: r.qty,
+              make:        r.make,
+              model:       r.model,
+              qty:         r.qty,
             },
           })
         );
@@ -257,8 +268,8 @@ const submitVariant = async () => {
 
     alert('Template updated!');
 
-    // 4️⃣ reload list so the table reflects the DB
-    setSelectedSubType(selectedSubType);   // triggers fetchComponents
+    // Refresh list
+    setSelectedSubType(selectedSubType);   // triggers fetchComponents again
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(err);
