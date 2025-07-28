@@ -52,10 +52,10 @@ class MLService {
     _roomType: string,
     _budget: number
   ): Promise<MLComponentSuggestion[]> {
-    const _suggestions: MLComponentSuggestion[] = [];
+    // const _suggestions: MLComponentSuggestion[] = [];
     
     // Simple similarity calculation based on component features
-    const _targetFeatures = this.extractFeatures(targetComponent);
+    // const _targetFeatures = this.extractFeatures(targetComponent);
     
     // Mock similar components for demo
     const mockSuggestions = [

@@ -54,7 +54,6 @@ export default function RoomCostPage() {
         setRoomConfigs(configs);
         setLegacyCosts(legacies);
       } catch (err: unknown) {
-        // eslint-disable-next-line no-console
         console.error(err);
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         setError('Failed to fetch data: ' + errorMessage);
@@ -62,7 +61,6 @@ export default function RoomCostPage() {
     };
 
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubType]);
 
   const getRoomTypes = (): string[] => {

@@ -1,4 +1,4 @@
-import { apiService, fetchAllPages } from './api';
+import { fetchAllPages } from './api';
 
 export interface ComponentSuggestion {
   id: number;
@@ -205,7 +205,7 @@ export const getComponentSuggestions = async (
 // Get cost optimization suggestions
 export const getCostOptimizationSuggestions = async (
   roomComponents: ComponentData[],
-  targetCostReduction: number = 0.1 // 10% reduction target
+  _targetCostReduction: number = 0.1 // 10% reduction target
 ): Promise<ComponentSuggestion[]> => {
   try {
     const allComponents = await fetchAllPages('/av-components');

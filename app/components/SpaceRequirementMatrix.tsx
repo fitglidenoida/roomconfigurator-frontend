@@ -140,7 +140,7 @@ const defaultSpaceRequirements: SpaceRequirement[] = [
 ];
 
 export default function SpaceRequirementMatrix({
-  roomTypes,
+  roomTypes: _roomTypes,
   selectedRoomType,
   selectedSubType,
   onRequirementSelect

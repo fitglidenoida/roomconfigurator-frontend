@@ -296,7 +296,7 @@ export const determineSubType = (roomType: string, totalCost: number, components
       comp.description.toLowerCase().includes('monitor') || 
       comp.description.toLowerCase().includes('display')
     );
-    const hasCodec = components.some(comp => 
+    const _hasCodec = components.some(comp => 
       comp.description.toLowerCase().includes('codec') || 
       comp.description.toLowerCase().includes('poly studio') ||
       comp.description.toLowerCase().includes('poly x')
@@ -333,7 +333,7 @@ export const determineSubType = (roomType: string, totalCost: number, components
   
   // For Meeting Rooms - determine variant based on VC setup
   if (name.includes('pax meeting room') || name.includes('meeting room') || name.includes('4pax') || name.includes('6pax') || name.includes('8pax') || name.includes('10pax')) {
-    const hasCodec = components.some(comp => 
+    const _hasCodec = components.some(comp => 
       comp.description.toLowerCase().includes('codec') || 
       comp.description.toLowerCase().includes('poly studio') ||
       comp.description.toLowerCase().includes('poly x') ||
@@ -360,12 +360,12 @@ export const determineSubType = (roomType: string, totalCost: number, components
     );
     
     // Codec-based setup (Amsterdam style) - Poly X70, E70 with codec
-    if (hasCodec && !hasDirectConnection) {
+    if (_hasCodec && !hasDirectConnection) {
       return 'Codec-Based';
     }
     
     // Direct connection setup (London style) - VC camera connected to computer
-    if (hasVCCamera && hasDirectConnection && !hasCodec) {
+    if (hasVCCamera && hasDirectConnection && !_hasCodec) {
       return 'Direct-Connect';
     }
     
@@ -408,7 +408,7 @@ export const determineSubType = (roomType: string, totalCost: number, components
 };
 
 // Categorize room type based on canonical name
-const categorizeRoomType = (roomType: string, components: ExcelComponent[]): string => {
+const categorizeRoomType = (roomType: string, _components: ExcelComponent[]): string => {
   const name = roomType.toLowerCase();
   
   // Handle special room types first
@@ -452,10 +452,10 @@ const categorizeRoomType = (roomType: string, components: ExcelComponent[]): str
 };
 
 // Helper function to extract pax count from room type name
-const extractPaxCount = (roomType: string): number => {
-  const paxMatch = roomType.match(/(\d+)pax/i);
-  return paxMatch ? parseInt(paxMatch[1]) : 0;
-};
+// const extractPaxCount = (roomType: string): number => {
+//   const paxMatch = roomType.match(/(\d+)pax/i);
+//   return paxMatch ? parseInt(paxMatch[1]) : 0;
+// };
 
 // Helper function to categorize cost line items
 const categorizeCostItem = (description: string): 'labour' | 'miscellaneous' | 'hardware' => {
@@ -508,74 +508,74 @@ const categorizeCostItem = (description: string): 'labour' | 'miscellaneous' | '
 };
 
 // Function to extract project-level costs from cost line items
-const extractProjectLevelCosts = (worksheet: XLSX.WorkSheet): { labourCost: number, miscellaneousCost: number } => {
-  let labourCost = 0;
-  let miscellaneousCost = 0;
-  
-  // Get the range of data
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-  
-  // Look for cost line items in the worksheet
-  for (let row = range.s.r; row <= range.e.r; row++) {
-    for (let col = range.s.c; col <= range.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-      const cell = worksheet[cellAddress];
-      
-      if (cell && cell.t === 's') {
-        const cellValue = cell.v.toString().toLowerCase();
-        
-        // Look for cost line items that contain specific keywords
-        if (cellValue.includes('project management') || 
-            cellValue.includes('training') ||
-            cellValue.includes('documentation') ||
-            cellValue.includes('installation') ||
-            cellValue.includes('testing') ||
-            cellValue.includes('commissioning') ||
-            cellValue.includes('painting') ||
-            cellValue.includes('programming') ||
-            cellValue.includes('freight') ||
-            cellValue.includes('insurance') ||
-            cellValue.includes('delivery') ||
-            cellValue.includes('aircharge') ||
-            cellValue.includes('airmag')) {
-          
-          // Try to find the cost value in adjacent cells
-          let costValue = 0;
-          
-          // Check right adjacent cell for cost
-          const rightCellAddress = XLSX.utils.encode_cell({ r: row, c: col + 1 });
-          const rightCell = worksheet[rightCellAddress];
-          if (rightCell && (rightCell.t === 'n' || (rightCell.t === 's' && !isNaN(parseFloat(rightCell.v))))) {
-            costValue = parseFloat(rightCell.v) || 0;
-          }
-          
-          // Check cell below for cost
-          const belowCellAddress = XLSX.utils.encode_cell({ r: row + 1, c: col });
-          const belowCell = worksheet[belowCellAddress];
-          if (belowCell && (belowCell.t === 'n' || (belowCell.t === 's' && !isNaN(parseFloat(belowCell.v))))) {
-            costValue = parseFloat(belowCell.v) || 0;
-          }
-          
-          // Categorize the cost
-          const category = categorizeCostItem(cell.v.toString());
-          
-          if (category === 'labour') {
-            labourCost += costValue;
-            console.log(`Found labour cost: "${cell.v}" = ${costValue}`);
-          } else if (category === 'miscellaneous') {
-            miscellaneousCost += costValue;
-            console.log(`Found miscellaneous cost: "${cell.v}" = ${costValue}`);
-          }
-        }
-      }
-    }
-  }
-  
-  console.log(`Total extracted labour cost: ${labourCost}`);
-  console.log(`Total extracted miscellaneous cost: ${miscellaneousCost}`);
-  
-  return { labourCost, miscellaneousCost };
-};
+// const extractProjectLevelCosts = (worksheet: XLSX.WorkSheet): { labourCost: number, miscellaneousCost: number } => {
+//   let labourCost = 0;
+//   let miscellaneousCost = 0;
+//   
+//   // Get the range of data
+//   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+//   
+//   // Look for cost line items in the worksheet
+//   for (let row = range.s.r; row <= range.e.r; row++) {
+//     for (let col = range.s.c; col <= range.e.c; col++) {
+//       const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+//       const cell = worksheet[cellAddress];
+//       
+//       if (cell && cell.t === 's') {
+//         const cellValue = cell.v.toString().toLowerCase();
+//         
+//         // Look for cost line items that contain specific keywords
+//         if (cellValue.includes('project management') || 
+//             cellValue.includes('training') ||
+//             cellValue.includes('documentation') ||
+//             cellValue.includes('installation') ||
+//             cellValue.includes('testing') ||
+//             cellValue.includes('commissioning') ||
+//             cellValue.includes('painting') ||
+//             cellValue.includes('programming') ||
+//             cellValue.includes('freight') ||
+//             cellValue.includes('insurance') ||
+//             cellValue.includes('delivery') ||
+//             cellValue.includes('aircharge') ||
+//             cellValue.includes('airmag')) {
+//           
+//           // Try to find the cost value in adjacent cells
+//           let costValue = 0;
+//           
+//           // Check right adjacent cell for cost
+//           const rightCellAddress = XLSX.utils.encode_cell({ r: row, c: col + 1 });
+//           const rightCell = worksheet[rightCellAddress];
+//           if (rightCell && (rightCell.t === 'n' || (rightCell.t === 's' && !isNaN(parseFloat(rightCell.v))))) {
+//             costValue = parseFloat(rightCell.v) || 0;
+//           }
+//           
+//           // Check cell below for cost
+//           const belowCellAddress = XLSX.utils.encode_cell({ r: row + 1, c: col });
+//           const belowCell = worksheet[belowCellAddress];
+//           if (belowCell && (belowCell.t === 'n' || (belowCell.t === 's' && !isNaN(parseFloat(belowCell.v))))) {
+//             costValue = parseFloat(belowCell.v) || 0;
+//           }
+//           
+//           // Categorize the cost
+//           const category = categorizeCostItem(cell.v.toString());
+//           
+//           if (category === 'labour') {
+//             labourCost += costValue;
+//             console.log(`Found labour cost: "${cell.v}" = ${costValue}`);
+//           } else if (category === 'miscellaneous') {
+//             miscellaneousCost += costValue;
+//             console.log(`Found miscellaneous cost: "${cell.v}" = ${costValue}`);
+//           }
+//         }
+//       }
+//     }
+//   }
+//   
+//   console.log(`Total extracted labour cost: ${labourCost}`);
+//   console.log(`Total extracted miscellaneous cost: ${miscellaneousCost}`);
+//   
+//   return { labourCost, miscellaneousCost };
+// };
 
 // Parse the specific Excel structure with materials list and room columns
 export const parseMaterialsListSheet = (
@@ -889,15 +889,15 @@ export const parseMaterialsListSheet = (
 };
 
 // Legacy function for backward compatibility
-const parseMultiRoomSheet = (
-  workbook: XLSX.WorkBook,
-  fileName: string,
-  region: string,
-  country: string,
-  currency: string
-): ExcelParseResult => {
-  return parseMaterialsListSheet(workbook, fileName, region, country, currency);
-};
+// const parseMultiRoomSheet = (
+//   workbook: XLSX.WorkBook,
+//   fileName: string,
+//   region: string,
+//   country: string,
+//   currency: string
+// ): ExcelParseResult => {
+//   return parseMaterialsListSheet(workbook, fileName, region, country, currency);
+// };
 
 const parseSingleRoomSheets = (
   workbook: XLSX.WorkBook,

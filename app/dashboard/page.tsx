@@ -29,7 +29,7 @@ export default function PMDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProject] = useState<string>('');
-  const [projects] = useState<any[]>([]);
+  // const [projects] = useState<any[]>([]);
   const [showRoomCostModal, setShowRoomCostModal] = useState(false);
   const [showCostBreakdownModal, setShowCostBreakdownModal] = useState(false);
   const pathname = usePathname();
