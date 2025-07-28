@@ -1127,6 +1127,51 @@ const parseSingleRoomSheets = (
     console.log(`Total labour cost extracted from Summary sheet: ${labourCost}`);
   }
   
+  // Extract room quantities from Summary sheet
+  const roomQuantities: { roomType: string; count: number }[] = [];
+  if (summarySheet) {
+    console.log('Extracting room quantities from Summary sheet...');
+    const summaryRange = XLSX.utils.decode_range(summarySheet['!ref'] || '');
+    
+    // Look for room quantity table in Summary sheet
+    for (let R = 0; R <= summaryRange.e.r; ++R) {
+      for (let C = 0; C <= summaryRange.e.c; ++C) {
+        const cell = summarySheet[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell) {
+          const cellValue = String(cell.v).toLowerCase();
+          
+          // Look for room type names in the Summary sheet
+          if (cellValue.includes('partner') || cellValue.includes('mdp') || 
+              cellValue.includes('meeting room') || cellValue.includes('conference') ||
+              cellValue.includes('board room') || cellValue.includes('training') ||
+              cellValue.includes('case team') || cellValue.includes('workstation') ||
+              cellValue.includes('mpr') || cellValue.includes('multipurpose')) {
+            
+            console.log(`Found room type in Summary sheet row ${R + 1}: "${cell.v}"`);
+            
+            // Look for quantity in nearby columns (usually to the right)
+            for (let qtyCol = C + 1; qtyCol <= Math.min(C + 5, summaryRange.e.c); ++qtyCol) {
+              const qtyCell = summarySheet[XLSX.utils.encode_cell({ r: R, c: qtyCol })];
+              if (qtyCell) {
+                const qtyValue = String(qtyCell.v);
+                const qty = parseInt(qtyValue);
+                
+                if (!isNaN(qty) && qty > 0) {
+                  const roomType = normalizeRoomTypeName(String(cell.v));
+                  roomQuantities.push({ roomType, count: qty });
+                  console.log(`Found room quantity in Summary sheet: "${cell.v}" = ${qty} rooms`);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('Room quantities extracted from Summary sheet:', roomQuantities);
+  }
+  
   workbook.SheetNames.forEach(sheetName => {
     try {
       // Skip summary, index, or other non-room sheets (but we already processed Summary above)
@@ -1267,7 +1312,7 @@ const parseSingleRoomSheets = (
     
     // Process data rows with improved logic
     let consecutiveBlankRows = 0;
-    const maxConsecutiveBlanks = 15; // Increased to handle more blank rows
+    const maxConsecutiveBlanks = 50; // Increased significantly to handle more blank rows
     let lastValidDataRow = headerRowIndex;
     
     for (let R = headerRowIndex + 1; R <= range.e.r; ++R) {
@@ -1435,15 +1480,20 @@ const parseSingleRoomSheets = (
       const paxMatch = roomType.match(/(\d+)pax/i);
       const paxCount = paxMatch ? parseInt(paxMatch[1]) : 0;
       
+      // Find room count from Summary sheet data
+      const roomCountData = roomQuantities.find(rq => rq.roomType === roomType);
+      const roomCount = roomCountData ? roomCountData.count : 1; // Default to 1 if not found
+      
       roomTypes.push({
         room_type: roomType,
         components,
         total_cost: totalCost,
         pax_count: paxCount,
-        category: categorizeRoomType(roomType, components)
+        category: categorizeRoomType(roomType, components),
+        count: roomCount // Add room count from Summary sheet
       });
       
-      console.log(`Created room type: ${roomType} with ${components.length} components, total cost: ${totalCost}`);
+      console.log(`Created room type: ${roomType} with ${components.length} components, total cost: ${totalCost}, room count: ${roomCount}`);
     }
     } catch (error) {
       console.error(`Error processing sheet ${sheetName}:`, error);
