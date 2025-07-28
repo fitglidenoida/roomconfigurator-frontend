@@ -161,24 +161,45 @@ export const fetchAllPages = async (endpoint: string, params: any = {}) => {
   let page = 1;
   const pageSize = 100;
 
-  while (true) {
-    const response = await apiClient.get(endpoint, {
-      params: {
-        ...params,
-        'pagination[page]': page,
-        'pagination[pageSize]': pageSize,
-      },
-    });
+  console.log(`Fetching all pages for ${endpoint} with params:`, params);
 
-    const { data, meta } = response.data;
-    allData = [...allData, ...data];
+  try {
+    while (true) {
+      const response = await apiClient.get(endpoint, {
+        params: {
+          ...params,
+          'pagination[page]': page,
+          'pagination[pageSize]': pageSize,
+        },
+      });
 
-    const { pageCount } = meta.pagination;
-    if (page >= pageCount) break;
-    page++;
+      const { data, meta } = response.data;
+      console.log(`Page ${page}: Got ${data.length} items, total pages: ${meta.pagination.pageCount}`);
+      
+      allData = [...allData, ...data];
+
+      const { pageCount } = meta.pagination;
+      if (page >= pageCount) break;
+      page++;
+    }
+
+    console.log(`Total items fetched for ${endpoint}: ${allData.length}`);
+    return allData;
+  } catch (error) {
+    console.error(`Error fetching all pages for ${endpoint}:`, error);
+    
+    // Fallback: try to fetch without pagination
+    console.log(`Trying fallback fetch without pagination for ${endpoint}`);
+    try {
+      const response = await apiClient.get(endpoint, { params });
+      const { data } = response.data;
+      console.log(`Fallback fetch for ${endpoint}: Got ${data.length} items`);
+      return data;
+    } catch (fallbackError) {
+      console.error(`Fallback fetch also failed for ${endpoint}:`, fallbackError);
+      return [];
+    }
   }
-
-  return allData;
 };
 
 export default apiClient; 

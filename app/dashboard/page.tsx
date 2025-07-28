@@ -49,6 +49,14 @@ export default function PMDashboard() {
         fetchAllPages('/projects')
       ]);
 
+      console.log('Dashboard data fetch results:', {
+        roomConfigs: roomConfigs.length,
+        avComponents: avComponents.length,
+        projectsData: projectsData.length
+      });
+
+      console.log('AV Components sample data:', avComponents.slice(0, 3));
+
       // setProjects(projectsData);
 
       // Calculate dashboard metrics - use actual project data from sessionStorage
