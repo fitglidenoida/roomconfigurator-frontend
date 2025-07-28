@@ -136,7 +136,7 @@ export const getComponentSuggestions = async (
     // Calculate similarity scores and filter
     const suggestions: ComponentSuggestion[] = [];
     
-    allComponents.forEach(comp => {
+    allComponents.forEach((comp: any) => {
       // Skip the same component
       if (comp.id === currentComponent.id) return;
       
@@ -211,16 +211,16 @@ export const getCostOptimizationSuggestions = async (
     const allComponents = await fetchAllPages('/av-components');
     const suggestions: ComponentSuggestion[] = [];
     
-    roomComponents.forEach(currentComp => {
+    roomComponents.forEach((currentComp: any) => {
       // Find cheaper alternatives
-      const alternatives = allComponents.filter(comp => {
+      const alternatives = allComponents.filter((comp: any) => {
         if (comp.id === currentComp.id) return false;
         
         const similarity = calculateSimilarity(currentComp, comp);
         return similarity >= 40 && comp.unit_cost < currentComp.unit_cost;
       });
       
-      alternatives.forEach(alt => {
+      alternatives.forEach((alt: any) => {
         const costDiff = alt.unit_cost - currentComp.unit_cost;
         const costPercentage = (costDiff / currentComp.unit_cost) * 100;
         
@@ -264,7 +264,7 @@ export const getRegionalPricingInsights = async (
     // Group by region
     const regionalData: Record<string, number[]> = {};
     
-    allComponents.forEach(comp => {
+    allComponents.forEach((comp: any) => {
       if (comp.make === component.make && comp.model === component.model) {
         if (!regionalData[comp.region]) {
           regionalData[comp.region] = [];
