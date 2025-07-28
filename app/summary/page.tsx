@@ -782,6 +782,28 @@ export default function ProjectMetadataForm() {
 
       // Create project
       // Cost priority: Manual input > Extracted from file > 0
+      const manualLabourCost = parseFloat(labourCost) || 0;
+      const manualMiscCost = parseFloat(miscCost) || 0;
+      const extractedLabourCost = parseResult.labourCost || 0;
+      const extractedMiscCost = parseResult.miscellaneousCost || 0;
+      
+      // Use manual input if provided (> 0), otherwise use extracted costs from parser
+      // This ensures extracted costs (109,030.71 labour, 18,866.97 misc) are used when manual fields are empty
+      const finalLabourCost = manualLabourCost > 0 ? manualLabourCost : extractedLabourCost;
+      const finalMiscCost = manualMiscCost > 0 ? manualMiscCost : extractedMiscCost;
+      
+      // Debug: Log cost mapping
+      console.log('Project creation cost mapping:', {
+        manualLabourCost,
+        manualMiscCost,
+        extractedLabourCost,
+        extractedMiscCost,
+        finalLabourCost,
+        finalMiscCost,
+        manualLabourInput: labourCost,
+        manualMiscInput: miscCost
+      });
+      
       const projectData = {
         project_name: projectName,
         region,
@@ -789,9 +811,9 @@ export default function ProjectMetadataForm() {
         currency,
         capex_amount: parseFloat(capex) || 0, // Leave blank for PM to fill
         network_cost: parseFloat(networkCost) || 0,
-        labour_cost: parseFloat(labourCost) || parseResult.labourCost || 0, // Manual > Extracted > 0
+        labour_cost: finalLabourCost,
         inflation: parseFloat(inflation) || 0,
-        misc_cost: parseFloat(miscCost) || parseResult.miscellaneousCost || 0, // Manual > Extracted > 0
+        misc_cost: finalMiscCost,
         notes: `Project created from Excel file: ${parseResult.sourceFile}. Total project estimate: ${totalCapex}`
       };
 

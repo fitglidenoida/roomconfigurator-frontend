@@ -303,17 +303,20 @@ export default function RoomConfigurationPage() {
     // Use actual project data instead of percentages
     const networkCost = parseFloat(projectData?.networkCost) || 0;
     const miscellaneousCost = parseFloat(projectData?.miscCost) || 0;
+    const extractedLabourCost = parseFloat(projectData?.labourCost) || 0;
     
     console.log('Calculated costs:', {
       totalRoomCost,
       networkCost,
       miscellaneousCost,
+      extractedLabourCost,
       networkCostRaw: projectData?.networkCost,
-      miscCostRaw: projectData?.miscCost
+      miscCostRaw: projectData?.miscCost,
+      labourCostRaw: projectData?.labourCost
     });
     
-    // Calculate labour cost as 10% of room costs only (not including network/miscellaneous)
-    const labourCost = totalRoomCost * 0.1; // 10% of room costs only
+    // Use extracted labour cost if available, otherwise calculate as 10% of room costs
+    const labourCost = extractedLabourCost > 0 ? extractedLabourCost : (totalRoomCost * 0.1);
     
     // Total project cost = Room costs + Labour + Network + Miscellaneous
     const totalProjectCost = totalRoomCost + labourCost + networkCost + miscellaneousCost;
@@ -322,10 +325,12 @@ export default function RoomConfigurationPage() {
       totalRoomCost,
       networkCost,
       miscellaneousCost,
+      extractedLabourCost,
       labourCost,
       labourCostPercentage: (labourCost / totalRoomCost) * 100,
       expectedLabourCost: totalRoomCost * 0.1,
-      totalProjectCost
+      totalProjectCost,
+      usingExtractedCost: extractedLabourCost > 0
     });
 
     setProjectCosts({
