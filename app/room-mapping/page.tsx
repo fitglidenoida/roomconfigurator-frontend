@@ -79,15 +79,24 @@ export default function RoomMappingPage() {
       try {
         const projectData = JSON.parse(projectDataString);
         console.log('Loaded project data for auto-population:', projectData);
+        console.log('Setting region/country:', { region: projectData.region, country: projectData.country });
+        
         setSelectedRegion(projectData.region || '');
         setSelectedCountry(projectData.country || '');
         setProjectCurrency(projectData.currency || 'USD');
-        console.log('Auto-set region/country:', { region: projectData.region, country: projectData.country });
+        
+        console.log('Auto-set region/country:', { 
+          region: projectData.region, 
+          country: projectData.country,
+          selectedRegion: projectData.region || '',
+          selectedCountry: projectData.country || ''
+        });
       } catch (error) {
         console.error('Error parsing project data:', error);
       }
     } else {
       console.log('No project data found in sessionStorage');
+      console.log('Available sessionStorage keys:', Object.keys(sessionStorage));
     }
     
 
@@ -105,6 +114,14 @@ export default function RoomMappingPage() {
   useEffect(() => {
     fetchExistingRoomTypes();
   }, [selectedRegion, selectedCountry, showOtherRegions, searchTerm]);
+
+  // Additional useEffect to trigger fetch when country/region is auto-set
+  useEffect(() => {
+    if (selectedCountry || selectedRegion) {
+      console.log('Country/Region changed, triggering room type fetch:', { selectedCountry, selectedRegion });
+      fetchExistingRoomTypes();
+    }
+  }, [selectedCountry, selectedRegion]);
 
   const fetchExistingRoomTypes = async () => {
     try {

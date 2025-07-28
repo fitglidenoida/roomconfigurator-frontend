@@ -478,7 +478,13 @@ export default function ProjectMetadataForm() {
           miscCost,   // Use manual input for SRM
           inflation
         };
+        
+        console.log('Storing project data for SRM flow:', projectData);
         sessionStorage.setItem('projectData', JSON.stringify(projectData));
+        
+        // Verify storage
+        const storedProjectData = sessionStorage.getItem('projectData');
+        console.log('Verification - stored project data:', storedProjectData ? 'Found' : 'Missing');
         
         // Debug: Log SRM cost handling
         console.log('SRM Flow - Cost handling:', {

@@ -72,8 +72,11 @@ export default function RoomConfigurationPage() {
           projectData: projectData ? 'Found' : 'Missing'
         });
         
-        if (!srmData || !roomMappings || !projectData) {
-          console.log('Missing data in sessionStorage:', { srmData: !!srmData, roomMappings: !!roomMappings, projectData: !!projectData });
+        // Log all available sessionStorage keys for debugging
+        console.log('All sessionStorage keys:', Object.keys(sessionStorage));
+        
+        if (!srmData || !roomMappings) {
+          console.log('Missing required data in sessionStorage:', { srmData: !!srmData, roomMappings: !!roomMappings });
           setError('No room mapping data found. Please complete the room mapping step first.');
           setLoading(false);
           return;
@@ -81,7 +84,30 @@ export default function RoomConfigurationPage() {
 
         const parsedSrmData = JSON.parse(srmData);
         const parsedRoomMappings = JSON.parse(roomMappings);
-        const parsedProjectData = JSON.parse(projectData);
+        let parsedProjectData = null;
+        
+        if (projectData) {
+          parsedProjectData = JSON.parse(projectData);
+        } else {
+          // Fallback: try to get project data from other sources
+          console.log('Project data not found, trying fallback sources...');
+          const finalProjectCosts = sessionStorage.getItem('finalProjectCosts');
+          if (finalProjectCosts) {
+            const parsedFinalProjectCosts = JSON.parse(finalProjectCosts);
+            parsedProjectData = {
+              region: 'Unknown',
+              country: 'Unknown',
+              currency: 'USD',
+              projectName: 'SRM Project',
+              capex: 0,
+              networkCost: parsedFinalProjectCosts.network_cost || 0,
+              labourCost: parsedFinalProjectCosts.labour_cost || 0,
+              miscCost: parsedFinalProjectCosts.miscellaneous_cost || 0,
+              inflation: 0
+            };
+            console.log('Created fallback project data:', parsedProjectData);
+          }
+        }
         
         console.log('Parsed data:', {
           srmData: parsedSrmData,
@@ -90,7 +116,7 @@ export default function RoomConfigurationPage() {
         });
         
         // Set project currency to avoid hydration issues
-        setProjectCurrency(parsedProjectData.currency || 'USD');
+        setProjectCurrency(parsedProjectData?.currency || 'USD');
         
         console.log('Loaded data:', { srmData: parsedSrmData, roomMappings: parsedRoomMappings, projectData: parsedProjectData });
 
@@ -140,6 +166,14 @@ export default function RoomConfigurationPage() {
 
     loadMappedRooms();
   }, []);
+
+  // Trigger cost calculation when configured rooms are loaded
+  useEffect(() => {
+    if (configuredRooms.length > 0) {
+      console.log('Configured rooms loaded, calculating project costs...');
+      calculateProjectCosts(configuredRooms);
+    }
+  }, [configuredRooms]);
 
   const loadRoomTypeComponents = async (rooms: ConfiguredRoom[]) => {
     try {
