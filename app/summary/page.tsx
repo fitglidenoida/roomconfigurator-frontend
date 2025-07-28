@@ -123,19 +123,36 @@ export default function ProjectMetadataForm() {
     const miscCostValue = parseFloat(miscCost) || 0;
     return roomCosts + networkCostValue + miscCostValue;
   };
+
+  // Calculate actual labour percentage based on manual entry or default
+  const getActualLabourPercentage = (): number => {
+    const manualLabourCost = parseFloat(labourCost) || 0;
+    const totalHardwareCost = calculateTotalHardwareCost();
+    
+    if (manualLabourCost > 0 && totalHardwareCost > 0) {
+      return (manualLabourCost / totalHardwareCost) * 100;
+    }
+    
+    return getLabourCostPercentage(region, country);
+  };
   
   // Auto-calculate labour cost when region/country changes or room data changes
   useEffect(() => {
-    if (region && country) {
-      if (parseResult) {
-        // If we have room data, calculate based on total hardware cost
+    if (region && country && parseResult) {
+      // Only auto-calculate if user hasn't manually entered a labour cost
+      const currentLabourCost = parseFloat(labourCost) || 0;
+      if (currentLabourCost === 0) {
+        // If no manual entry, calculate based on total hardware cost
         const totalHardwareCost = calculateTotalHardwareCost();
         const labourPercentage = getLabourCostPercentage(region, country);
         const calculatedLabourCost = totalHardwareCost * (labourPercentage / 100);
         setLabourCost(calculatedLabourCost.toFixed(2));
-      } else {
-        // If no room data yet, just show the percentage for reference
-        const labourPercentage = getLabourCostPercentage(region, country);
+      }
+      // If user has entered a value, keep it as is
+    } else if (region && country && !parseResult) {
+      // If no room data yet, just show the percentage for reference
+      const currentLabourCost = parseFloat(labourCost) || 0;
+      if (currentLabourCost === 0) {
         setLabourCost(''); // Clear the field until we have room data
       }
     }
@@ -1175,7 +1192,7 @@ export default function ProjectMetadataForm() {
                     Labour Cost 
                     {region && country && (
                       <span className="text-xs text-gray-500 ml-2">
-                        ({getLabourCostPercentage(region, country)}% of hardware costs)
+                        ({getActualLabourPercentage().toFixed(1)}% of hardware costs)
                       </span>
                     )}
                   </label>
@@ -1183,23 +1200,30 @@ export default function ProjectMetadataForm() {
                     type="number"
                     value={labourCost}
                     onChange={(e) => setLabourCost(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
-                    readOnly={!!parseResult}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                     placeholder={
                       region && country 
-                        ? `${getLabourCostPercentage(region, country)}% of hardware costs (auto-calculated)`
+                        ? `Enter amount or leave empty for ${getLabourCostPercentage(region, country)}% auto-calculation`
                         : "Select region and country first"
                     }
                   />
                   {region && country && !parseResult && (
                     <p className="text-xs text-blue-600 mt-1">
-                      Will be calculated as {getLabourCostPercentage(region, country)}% of total hardware costs once file is uploaded
+                      Will be calculated as {getLabourCostPercentage(region, country)}% of total hardware costs once file is uploaded, or enter your own amount
                     </p>
                   )}
                   {parseResult && labourCost && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Based on {calculateTotalHardwareCost().toLocaleString()} total hardware costs
-                    </p>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {parseFloat(labourCost) > 0 ? (
+                        <span className="text-green-600">
+                          ✓ Using manual labour cost entry
+                        </span>
+                      ) : (
+                        <span>
+                          Auto-calculated as {getActualLabourPercentage().toFixed(1)}% of {calculateTotalHardwareCost().toLocaleString()} hardware costs
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -1266,7 +1290,11 @@ export default function ProjectMetadataForm() {
                     </p>
                     {region && country && (
                       <p className="text-xs text-gray-500">
-                        {getLabourCostPercentage(region, country)}% of hardware costs
+                        {parseFloat(labourCost) > 0 ? (
+                          <span className="text-green-600">Manual entry</span>
+                        ) : (
+                          <span>{getActualLabourPercentage().toFixed(1)}% of hardware costs</span>
+                        )}
                       </p>
                     )}
                   </div>
