@@ -249,16 +249,54 @@ export default function PMDashboard() {
       }
       
       // Cost breakdown by component type - show categorization of all AV components (ALWAYS run)
+      console.log('Raw AV Components data sample:', avComponents.slice(0, 5).map(comp => ({
+        id: comp.id,
+        name: comp.name,
+        component_type: comp.component_type,
+        category: comp.category,
+        sub_category: comp.sub_category
+      })));
+      
       costBreakdown = avComponents.reduce((acc, component) => {
-        const type = component.component_type || 'Uncategorized';
+        // Try multiple fields for categorization
+        let type = component.component_type || 
+                  component.category || 
+                  component.sub_category || 
+                  'Uncategorized';
+        
+        // If all components have the same type, categorize by name patterns
+        if (type === 'Uncategorized' || type === 'AV Equipment' || type === '') {
+          const name = (component.name || '').toLowerCase();
+          
+          if (name.includes('display') || name.includes('tv') || name.includes('monitor') || name.includes('screen')) {
+            type = 'Displays';
+          } else if (name.includes('speaker') || name.includes('audio') || name.includes('sound') || name.includes('mic')) {
+            type = 'Audio';
+          } else if (name.includes('cable') || name.includes('wire') || name.includes('connector') || name.includes('hdmi')) {
+            type = 'Cabling';
+          } else if (name.includes('mount') || name.includes('bracket') || name.includes('stand')) {
+            type = 'Mounting';
+          } else if (name.includes('switch') || name.includes('matrix') || name.includes('controller')) {
+            type = 'Control Systems';
+          } else if (name.includes('projector') || name.includes('lens')) {
+            type = 'Projection';
+          } else if (name.includes('camera') || name.includes('video')) {
+            type = 'Video';
+          } else if (name.includes('light') || name.includes('led')) {
+            type = 'Lighting';
+          } else {
+            type = 'Other Equipment';
+          }
+        }
+        
         const existing = acc.find((item: any) => item.type === type);
         if (existing) {
-          existing.cost += component.unit_cost;
+          existing.cost += component.unit_cost || 0;
           existing.count += 1;
         } else {
           acc.push({
             type,
-            cost: component.unit_cost,
+            cost: component.unit_cost || 0,
             count: 1
           });
         }
@@ -269,7 +307,8 @@ export default function PMDashboard() {
         totalComponents: avComponents.length,
         categorized: costBreakdown.filter(item => item.type !== 'Uncategorized').reduce((sum, item) => sum + item.count, 0),
         uncategorized: costBreakdown.find(item => item.type === 'Uncategorized')?.count || 0,
-        breakdown: costBreakdown
+        breakdown: costBreakdown,
+        uniqueTypes: costBreakdown.map(item => item.type)
       });
       
       // Regional comparison (ALWAYS run)
