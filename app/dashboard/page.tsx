@@ -69,19 +69,91 @@ export default function PMDashboard() {
         const roomMappings = sessionStorage.getItem('roomMappings');
         const srmData = sessionStorage.getItem('srmData');
         
-        if (finalProjectCosts && billOfMaterials && projectData) {
+        console.log('Dashboard - SessionStorage check:', {
+          finalProjectCosts: !!finalProjectCosts,
+          billOfMaterials: !!billOfMaterials,
+          projectData: !!projectData,
+          roomMappings: !!roomMappings,
+          srmData: !!srmData
+        });
+        
+        if (projectData || finalProjectCosts) {
           try {
-            const parsedFinalProjectCosts = JSON.parse(finalProjectCosts);
-            const parsedBillOfMaterials = JSON.parse(billOfMaterials);
-            const parsedProjectData = JSON.parse(projectData);
+            const parsedProjectData = projectData ? JSON.parse(projectData) : {};
+            const parsedFinalProjectCosts = finalProjectCosts ? JSON.parse(finalProjectCosts) : {};
+            const parsedBillOfMaterials = billOfMaterials ? JSON.parse(billOfMaterials) : [];
             const parsedRoomMappings = roomMappings ? JSON.parse(roomMappings) : [];
             const parsedSrmData = srmData ? JSON.parse(srmData) : [];
             
-            // Get total project cost with inflation
-            const totalRoomCost = parsedFinalProjectCosts.total_room_cost || 0;
-            const labourCost = parsedFinalProjectCosts.labour_cost || 0;
-            const networkCost = parsedFinalProjectCosts.network_cost || 0;
-            const miscellaneousCost = parsedFinalProjectCosts.miscellaneous_cost || 0;
+            // Use the same cost calculation logic as configurator page
+            let totalRoomCost = 0;
+            let labourCost = 0;
+            let networkCost = 0;
+            let miscellaneousCost = 0;
+            
+            // Priority: projectData (manual input) over finalProjectCosts (BOQ extracted)
+            if (projectData) {
+              // SRM flow - use manual input costs
+              labourCost = parseFloat(parsedProjectData.labourCost) || 0;
+              networkCost = parseFloat(parsedProjectData.networkCost) || 0;
+              miscellaneousCost = parseFloat(parsedProjectData.miscCost) || 0;
+              
+              console.log('Dashboard using SRM manual costs:', { labourCost, networkCost, miscellaneousCost });
+            } else if (finalProjectCosts) {
+              // BOQ flow - use extracted costs
+              totalRoomCost = parsedFinalProjectCosts.total_room_cost || 0;
+              labourCost = parseFloat(parsedFinalProjectCosts.labour_cost) || 0;
+              networkCost = parseFloat(parsedFinalProjectCosts.network_cost) || 0;
+              miscellaneousCost = parseFloat(parsedFinalProjectCosts.miscellaneous_cost) || 0;
+              
+              console.log('Dashboard using BOQ extracted costs:', { totalRoomCost, labourCost, networkCost, miscellaneousCost });
+            }
+            
+            // Calculate room costs from room configurations if available
+            if (parsedRoomMappings.length > 0 && parsedSrmData.length > 0) {
+              const mappedRooms = parsedRoomMappings.filter((mapping: any) => 
+                mapping.status === 'mapped' || mapping.status === 'new_room'
+              );
+              
+              totalRoomCost = mappedRooms.reduce((sum: number, mapping: any) => {
+                const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
+                const roomCount = srmRoom ? srmRoom.count : 1;
+                
+                // Calculate cost per room type (same logic as configurator)
+                let costPerRoom = 0;
+                
+                // Try to get cost from bill of materials
+                if (parsedBillOfMaterials.length > 0) {
+                  const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
+                  const roomComponents = parsedBillOfMaterials.filter((item: any) => 
+                    item.room_type === roomName || 
+                    item.room_type === mapping.selected_room_type?.name ||
+                    item.room_type === mapping.new_room_name
+                  );
+                  
+                  costPerRoom = roomComponents.reduce((sum: number, comp: any) => {
+                    return sum + (comp.unit_cost * comp.quantity_per_room);
+                  }, 0);
+                }
+                
+                // Use default costs if no bill of materials
+                if (costPerRoom === 0) {
+                  const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
+                  if (roomName.toLowerCase().includes('meeting') || roomName.toLowerCase().includes('conference')) {
+                    costPerRoom = 50000;
+                  } else if (roomName.toLowerCase().includes('office') || roomName.toLowerCase().includes('workstation')) {
+                    costPerRoom = 15000;
+                  } else {
+                    costPerRoom = 30000;
+                  }
+                }
+                
+                return sum + (costPerRoom * roomCount);
+              }, 0);
+              
+              console.log('Dashboard calculated total room cost:', totalRoomCost);
+            }
+            
             const inflation = parseFloat(parsedProjectData.inflation) || 0;
             
             // Calculate subtotal and inflation
@@ -89,9 +161,17 @@ export default function PMDashboard() {
             const inflationAmount = subtotal * (inflation / 100);
             totalProjectCost = subtotal + inflationAmount;
             
-            console.log('Using actual project cost from sessionStorage:', totalProjectCost);
+            console.log('Dashboard final cost calculation:', {
+              totalRoomCost,
+              labourCost,
+              networkCost,
+              miscellaneousCost,
+              subtotal,
+              inflationAmount,
+              totalProjectCost
+            });
             
-                             // Calculate room level costs from SRM data for consistency
+            // Calculate room level costs from SRM data for consistency
                  const roomCostMap = new Map();
                  
                  // Use SRM data as the source of truth for room types
@@ -730,7 +810,7 @@ export default function PMDashboard() {
                                 </span>
                               </td>
                               <td className="px-4 py-2 text-sm">
-                                <Link href="/">
+                                <Link href="/configurator">
                                   <button className="text-blue-600 hover:text-blue-700 font-medium">
                                     View Details
                                   </button>

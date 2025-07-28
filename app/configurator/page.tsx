@@ -402,6 +402,20 @@ export default function RoomConfigurator() {
       totalProjectCostWithInflation,
       budgetDiff
     });
+    
+    // Save final cost data to sessionStorage for dashboard
+    const finalProjectCosts = {
+      total_room_cost: totalRoomCost,
+      labour_cost: labourCost,
+      network_cost: networkCost,
+      miscellaneous_cost: miscellaneous,
+      total_project_cost: totalProjectCostWithInflation,
+      inflation_amount: inflationAmount,
+      budget_variance: budgetDiff
+    };
+    
+    sessionStorage.setItem('finalProjectCosts', JSON.stringify(finalProjectCosts));
+    console.log('Saved final project costs to sessionStorage:', finalProjectCosts);
   };
 
   const formatCurrency = (amount: number) => {
