@@ -1,336 +1,1381 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import * as XLSX from 'xlsx';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
+import { apiService } from '../lib/api';
+import { parseExcelFile, ExcelParseResult, RoomTypeData } from '../lib/excelParser';
 
-type AvMaterialItem = {
-  id: number;
-  documentId: string;
-  room_type: string;
-  description?: string;
-  make?: string;
-  model?: string;
-  unit_cost: number;
-  qty: number;
-  createdAt?: string;
+const regionMap: Record<string, string[]> = {
+  NAMR: ['USA', 'Canada', 'Mexico'],
+  EMESA: ['United Kingdom', 'Germany', 'France', 'South Africa', 'Netherlands'],
+  'APACME': ['India', 'Singapore', 'UAE', 'Qatar'],
 };
 
-type ExcelRow = {
-  room_type?: string;
-  description?: string;
-  make?: string;
-  model?: string;
-  qty?: number;
-  unit_cost?: number;
+const countryRegionMap: Record<string, { region: string; country: string }> = {
+  London: { region: 'EMESA', country: 'United Kingdom' },
+  Chennai: { region: 'APACME', country: 'India' },
+  Bangalore: { region: 'APACME', country: 'India' },
+  Raleigh: { region: 'NAMR', country: 'USA' },
+  Boston: { region: 'NAMR', country: 'USA' },
+  Amsterdam: { region: 'EMESA', country: 'Netherlands' },
+  Dubai: { region: 'APACME', country: 'UAE' },
+  Doha: { region: 'APACME', country: 'Qatar' },
+  Singapore: { region: 'APACME', country: 'Singapore' },
+  Delhi: { region: 'APACME', country: 'India' },
+  Mumbai: { region: 'APACME', country: 'India' },
+  Paris: { region: 'EMESA', country: 'France' },
+  Sydney: { region: 'EMESA', country: 'Australia' },
+  Toronto: { region: 'NAMR', country: 'Canada' },
+  Hyderabad: { region: 'APACME', country: 'India' },
+  Melbourne: { region: 'EMESA', country: 'Australia' },
+  Mexico: { region: 'NAMR', country: 'Mexico' },
+  Madrid: { region: 'EMESA', country: 'Spain' },
+  Kolkata: { region: 'APACME', country: 'India' },
+  Pune: { region: 'APACME', country: 'India' },
 };
 
-
-type RoomConfigurationItem = {
-  id: number;
-  documentId: string;
-  room_type: string;
-  sub_type: string;
-  description: string;
-  make: string;
-  model: string;
-  qty: number;
-  unit_price: number;
+const countryCurrencyMap: Record<string, string> = {
+  India: 'INR',
+  USA: 'USD',
+  Canada: 'CAD',
+  Mexico: 'MXN',
+  'United Kingdom': 'GBP',
+  Germany: 'EUR',
+  France: 'EUR',
+  'South Africa': 'ZAR',
+  Singapore: 'SGD',
+  UAE: 'AED',
+  Qatar: 'QAR',
+  Netherlands: 'EUR',
 };
 
-type RoomCostData = {
-  room_type: string;
-  total_cost: number;
+const symbolToCurrencyMap: Record<string, string> = {
+  '₹': 'INR',
+  '$': 'USD',
+  '€': 'EUR',
+  '£': 'GBP',
+  AED: 'AED',
+  SGD: 'SGD',
+  QAR: 'QAR',
+  ZAR: 'ZAR',
 };
 
-export default function SummaryPage() {
-  const [summaryData, setSummaryData] = useState<RoomCostData[]>([]);
+export default function ProjectMetadataForm() {
+  const router = useRouter();
+  const [region, setRegion] = useState('');
+  const [country, setCountry] = useState('');
+  const [currency, setCurrency] = useState('');
+  const [capex, setCapex] = useState('');
+  const [networkCost, setNetworkCost] = useState('');
+  const [labourCost, setLabourCost] = useState('');
+  const [inflation, setInflation] = useState('15'); // Default 15% inflation
+  const [miscCost, setMiscCost] = useState('');
+  const [projectName, setProjectName] = useState('');
+  
+  // Labour cost calculation based on region/country
+  const getLabourCostPercentage = (region: string, country: string): number => {
+    // Different labour cost percentages based on region/country
+    const labourRates: { [key: string]: number } = {
+      'APACME': 12, // 12% for APACME region
+      'EMESA': 15,  // 15% for EMESA region
+      'NAMR': 18,   // 18% for NAMR region
+      'United Kingdom': 18,     // 18% for UK
+      'USA': 20,     // 20% for US
+      'Canada': 16, // 16% for Canada
+      'Australia': 14, // 14% for Australia
+      'Singapore': 13, // 13% for Singapore
+      'India': 10,  // 10% for India
+      'UAE': 12,    // 12% for UAE
+      'Qatar': 12,  // 12% for Qatar
+    };
+    
+    // Try country first, then region, then default
+    return labourRates[country] || labourRates[region] || 15;
+  };
+  
+  const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const pathname = usePathname();
+  const [uploading, setUploading] = useState(false);
+  const [invalidEntries, setInvalidEntries] = useState<any[]>([]);
+  
+  // New state for room configuration workflow
+  const [parseResult, setParseResult] = useState<ExcelParseResult | null>(null);
+  const [fileType, setFileType] = useState<'SRM' | 'BOQ' | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [projectCreated, setProjectCreated] = useState(false);
+  
+  // Calculate total room costs from parsed data
+  const calculateTotalRoomCosts = (): number => {
+    if (!parseResult || !parseResult.roomTypes) return 0;
+    return parseResult.roomTypes.reduce((sum: number, room: any) => sum + (room.total_cost || 0), 0);
+  };
+  
+  // Calculate total hardware cost (room costs + network + miscellaneous)
+  const calculateTotalHardwareCost = (): number => {
+    const roomCosts = calculateTotalRoomCosts();
+    const networkCostValue = parseFloat(networkCost) || 0;
+    const miscCostValue = parseFloat(miscCost) || 0;
+    return roomCosts + networkCostValue + miscCostValue;
+  };
+  
+  // Auto-calculate labour cost when region/country changes or room data changes
+  useEffect(() => {
+    if (region && country) {
+      if (parseResult) {
+        // If we have room data, calculate based on total hardware cost
+        const totalHardwareCost = calculateTotalHardwareCost();
+        const labourPercentage = getLabourCostPercentage(region, country);
+        const calculatedLabourCost = totalHardwareCost * (labourPercentage / 100);
+        setLabourCost(calculatedLabourCost.toFixed(2));
+      } else {
+        // If no room data yet, just show the percentage for reference
+        const labourPercentage = getLabourCostPercentage(region, country);
+        setLabourCost(''); // Clear the field until we have room data
+      }
+    }
+  }, [region, country, parseResult, networkCost, miscCost]);
 
-  const fetchData = async () => {
+  const handleInputChange = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    const payload = {
+      project_name: projectName,
+      region,
+      country,
+      currency,
+      capex_amount: parseFloat(capex) || 0,
+      network_cost: parseFloat(networkCost) || 0,
+      labour_cost: parseFloat(labourCost) || 0,
+      inflation: parseFloat(inflation) || 0,
+      misc_cost: parseFloat(miscCost) || 0,
+    };
+
     try {
-      setLoading(true);
-      let allRoomConfigs: RoomConfigurationItem[] = [];
-      let allBoMItems: AvMaterialItem[] = [];
-      let page = 1;
-      const pageSize = 100;
-
-      // Fetch all room_configurations
-      while (true) {
-        const response = await axios.get<{
-          data: RoomConfigurationItem[];
-          meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-        }>(`https://backend.sandyy.dev/api/room-configurations?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
-        allRoomConfigs = [...allRoomConfigs, ...response.data.data];
-        const { pageCount } = response.data.meta.pagination;
-        console.log(`Room Configs Page ${page}/${pageCount}, Total Items: ${allRoomConfigs.length}`);
-        if (page >= pageCount) break;
-        page++;
-      }
-
-      // Get unique room_types from room_configurations
-      const roomConfigRoomTypes = new Set(allRoomConfigs.map(item => item.room_type));
-
-      // Fetch av_bill_of_materials for room_types not in room_configurations
-      page = 1;
-      while (true) {
-        const response = await axios.get<{
-          data: AvMaterialItem[];
-          meta: { pagination: { page: number; pageSize: number; pageCount: number; total: number } };
-        }>(`https://backend.sandyy.dev/api/av-bill-of-materials?pagination[page]=${page}&pagination[pageSize]=${pageSize}`);
-        const items = response.data.data.filter(item => !roomConfigRoomTypes.has(item.room_type));
-        allBoMItems = [...allBoMItems, ...items];
-        const { pageCount } = response.data.meta.pagination;
-        console.log(`BoM Page ${page}/${pageCount}, Filtered Items: ${items.length}`);
-        if (page >= pageCount) break;
-        page++;
-      }
-
-      // Group room_configurations by room_type and component
-      const groupedByRoom: Record<string, number> = {};
-      const roomConfigGroups: Record<string, Record<string, { totalPrice: number; count: number; totalQty: number }>> = {};
-      allRoomConfigs.forEach(item => {
-        const key = `${item.description || ''}|${item.make || ''}|${item.model || ''}`;
-        const price = typeof item.unit_price === 'number' ? item.unit_price : parseFloat(item.unit_price) || 0;
-        const qty = typeof item.qty === 'number' ? item.qty : parseFloat(item.qty) || 0;
-
-        if (!roomConfigGroups[item.room_type]) {
-          roomConfigGroups[item.room_type] = {};
-        }
-        if (!roomConfigGroups[item.room_type][key]) {
-          roomConfigGroups[item.room_type][key] = { totalPrice: 0, count: 0, totalQty: 0 };
-        }
-
-        roomConfigGroups[item.room_type][key].totalPrice += price;
-        roomConfigGroups[item.room_type][key].count += 1;
-        roomConfigGroups[item.room_type][key].totalQty += qty;
-      });
-
-      Object.entries(roomConfigGroups).forEach(([room_type, components]) => {
-        let roomTotal = 0;
-        Object.entries(components).forEach(([, { totalPrice, count, totalQty }]) => {
-          const avgUnitPrice = count > 0 ? totalPrice / count : 0;
-          roomTotal += avgUnitPrice * totalQty;
-        });
-        groupedByRoom[room_type] = roomTotal;
-      });
-
-      // Group av_bill_of_materials by room_type and component
-      const groupedBoM: Record<string, Record<string, AvMaterialItem>> = {};
-      allBoMItems.forEach((item) => {
-        const { room_type, description, make, model, id } = item;
-        const componentKey = `${description || ''}|${make || ''}|${model || ''}`;
-
-        if (!groupedBoM[room_type]) {
-          groupedBoM[room_type] = {};
-        }
-        // Update only if new or has higher id (most recent)
-        if (!groupedBoM[room_type][componentKey] || id > groupedBoM[room_type][componentKey].id) {
-          groupedBoM[room_type][componentKey] = { ...item };
-        }
-      });
-
-      Object.entries(groupedBoM).forEach(([room_type, components]) => {
-        let roomTotal = 0;
-        const componentGroups: Record<string, { totalCost: number; count: number; totalQty: number }> = {};
-
-        Object.values(components).forEach((item) => {
-          const key = `${item.description || ''}|${item.make || ''}|${item.model || ''}`;
-          const cost = typeof item.unit_cost === 'number' ? item.unit_cost : parseFloat(item.unit_cost) || 0;
-          const qty = typeof item.qty === 'number' ? item.qty : parseFloat(item.qty) || 0;
-
-          if (!componentGroups[key]) {
-            componentGroups[key] = { totalCost: 0, count: 0, totalQty: 0 };
-          }
-
-          componentGroups[key].totalCost += cost;
-          componentGroups[key].count += 1;
-          componentGroups[key].totalQty += qty;
-        });
-
-        Object.entries(componentGroups).forEach(([, { totalCost, count, totalQty }]) => {
-          const avgUnitCost = count > 0 ? totalCost / count : 0;
-          roomTotal += avgUnitCost * totalQty;
-        });
-
-        groupedByRoom[room_type] = (groupedByRoom[room_type] || 0) + roomTotal;
-      });
-
-      // Apply 10% markup to total_cost for each room_type
-      Object.keys(groupedByRoom).forEach(room_type => {
-        groupedByRoom[room_type] *= 1.1;
-      });
-
-      // Format data for display
-      const formatted: RoomCostData[] = Object.entries(groupedByRoom).map(([room_type, total_cost]) => ({
-        room_type,
-        total_cost,
-      }));
-      console.log('Formatted Data:', formatted);
-
-      setSummaryData(formatted);
+      await apiService.createProject(payload);
+      setSuccess('Project data submitted successfully!');
     } catch (err) {
-      setError('Failed to fetch data. Please try again later.');
-      console.error('Fetch Error:', err);
+      console.error('Submission error:', err);
+      setError('Failed to submit project data. Please try again.');
+    }
+  };
+
+  const handleCountryChange = (val: string) => {
+    setCountry(val);
+    const currency = countryCurrencyMap[val] || '';
+    setCurrency(currency);
+  };
+
+  // Function to detect file type (SRM vs BOQ)
+  const detectFileType = (fileName: string, fileContent: any): 'SRM' | 'BOQ' => {
+    const fileNameLower = fileName.toLowerCase();
+    
+    // Check file name for clues
+    if (fileNameLower.includes('srm') || fileNameLower.includes('space') || fileNameLower.includes('requirement')) {
+      return 'SRM';
+    }
+    if (fileNameLower.includes('boq') || fileNameLower.includes('bill') || fileNameLower.includes('quantity')) {
+      return 'BOQ';
+    }
+    
+    // Check content structure - SRM typically has room counts, BOQ has detailed components
+    // This is a simplified check - you can enhance this based on your actual file structures
+    if (fileContent && typeof fileContent === 'object') {
+      const hasRoomCounts = Object.values(fileContent).some((sheet: any) => 
+        sheet && Array.isArray(sheet) && sheet.some((row: any) => 
+          row && typeof row === 'object' && 
+          (row.room_type || row.room_name || row.count || row.quantity)
+        )
+      );
+      
+      if (hasRoomCounts) {
+        return 'SRM';
+      }
+    }
+    
+    // Default to SRM if uncertain
+    return 'SRM';
+  };
+
+  // Simple SRM parser that extracts room types without validation
+  const parseSRMFile = async (
+    file: File,
+    region: string,
+    country: string,
+    currency: string
+  ): Promise<ExcelParseResult> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          const roomTypes: RoomTypeData[] = [];
+          const invalidEntries: any[] = [];
+          
+          // Process each sheet in the workbook
+          workbook.SheetNames.forEach(sheetName => {
+            console.log(`Processing sheet: ${sheetName}`);
+            const sheet = workbook.Sheets[sheetName];
+            if (!sheet) return;
+            
+            const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+            console.log(`Sheet range: ${sheet['!ref']}, rows: ${range.e.r + 1}, cols: ${range.e.c + 1}`);
+            
+            // Look for room type and count columns
+            // Column B (second column) = Room type headers, Column C (third column) = Room counts
+            console.log(`\n=== Processing rows in ${sheetName} ===`);
+            for (let row = 0; row <= range.e.r; row++) {
+              const roomTypeCell = sheet[XLSX.utils.encode_cell({ r: row, c: 1 })]; // Column B (second column)
+              const countCell = sheet[XLSX.utils.encode_cell({ r: row, c: 2 })]; // Column C (third column)
+              
+              // Debug: Show what we're reading
+              const roomTypeValue = roomTypeCell ? String(roomTypeCell.v).trim() : '';
+              const countValue = countCell ? String(countCell.v).trim() : '';
+              console.log(`Row ${row + 1}: Column B="${roomTypeValue}", Column C="${countValue}"`);
+              
+              if (roomTypeCell && countCell) {
+                const roomTypeName = String(roomTypeCell.v).trim();
+                const count = parseFloat(String(countCell.v)) || 0;
+                
+                // Skip empty rows
+                if (!roomTypeName) {
+                  continue;
+                }
+                
+                // Skip header row (contains "room type" or similar)
+                if (roomTypeName.toLowerCase().includes('room type') || 
+                    roomTypeName.toLowerCase().includes('space type') ||
+                    roomTypeName.toLowerCase().includes('type') && roomTypeName.toLowerCase().includes('count')) {
+                  console.log(`Skipping header row: "${roomTypeName}"`);
+                  continue;
+                }
+                
+                // Skip if count is 0 or invalid
+                if (count <= 0) {
+                  console.log(`Skipping zero count for: "${roomTypeName}"`);
+                  continue;
+                }
+                
+                // Normalize room type name (convert "Single Offices" to "Partner Cabins")
+                let normalizedRoomType = roomTypeName;
+                if (roomTypeName.toLowerCase().includes('single office') || roomTypeName.toLowerCase().includes('single offices')) {
+                  normalizedRoomType = 'Partner Cabins';
+                }
+                
+                // Create a simple room type entry without components
+                roomTypes.push({
+                  room_type: normalizedRoomType,
+                  components: [], // Empty components array for SRM
+                  total_cost: 0, // Will be calculated later during mapping
+                  pax_count: 0,
+                  category: 'SRM Room Type',
+                  labour_cost: 0,
+                  miscellaneous_cost: 0,
+                  sub_type: 'Standard',
+                  count: count // Store the count from SRM
+                });
+                
+                console.log(`Found SRM room type: ${roomTypeName} -> ${normalizedRoomType} (count: ${count})`);
+              }
+            }
+            
+            console.log(`Total room types found in sheet ${sheetName}: ${roomTypes.length}`);
+          });
+          
+          const result: ExcelParseResult = {
+            roomTypes,
+            invalidEntries,
+            labourCost: 0,
+            miscellaneousCost: 0,
+            sourceFile: file.name
+          };
+          
+          resolve(result);
+        } catch (error) {
+          console.error('SRM parsing error:', error);
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read SRM file'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // New handlers for room configuration workflow
+  const handleRoomConfigFileUpload = async (file: File) => {
+    if (!region || !country) {
+      setError('Please select region and country first.');
+      return;
+    }
+
+    // File validation for demo
+    const maxSize = 10 * 1024 * 1024; // 10MB limit
+    if (file.size > maxSize) {
+      setError('File size too large. Please upload a file smaller than 10MB.');
+      return;
+    }
+
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+      'application/octet-stream' // Some systems send this for Excel files
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
+      setError('Please upload a valid Excel file (.xlsx or .xls)');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      // First, read the file to detect its type
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Convert workbook to JSON for analysis
+          const fileContent: any = {};
+          workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            fileContent[sheetName] = XLSX.utils.sheet_to_json(worksheet);
+          });
+          
+          // Detect file type
+          const detectedType = detectFileType(file.name, fileContent);
+          setFileType(detectedType);
+          
+          // Process file based on type
+          if (detectedType === 'SRM') {
+            // Process as SRM - extract room requirements without validation
+            const result = await parseSRMFile(file, region, country, currency);
+            setParseResult(result);
+            
+            if (result.roomTypes.length === 0) {
+              setError('No room types found in the SRM file.');
+            } else {
+              // Store SRM data in sessionStorage for room mapping page
+              const srmData = result.roomTypes.map((room, index) => ({
+                id: `srm-${index}`,
+                room_name: room.room_type,
+                space_type: room.room_type.toLowerCase().includes('partner') || 
+                           room.room_type.toLowerCase().includes('office') || 
+                           room.room_type.toLowerCase().includes('workstation') ||
+                           room.room_type.toLowerCase().includes('cabin') ||
+                           room.room_type.toLowerCase().includes('desk') ||
+                           room.room_type.toLowerCase().includes('individual') ? 'i-space' : 'we-space',
+                count: room.count || 1, // Use actual count from SRM
+                category: room.category || 'SRM Room Type',
+                description: `From SRM: ${room.room_type} (Count: ${room.count || 1})`
+              }));
+              
+              sessionStorage.setItem('srmData', JSON.stringify(srmData));
+              
+              // Store project details for room mapping page
+              const projectData = {
+                region,
+                country,
+                currency,
+                projectName,
+                capex,
+                networkCost,
+                labourCost,
+                miscCost,
+                inflation
+              };
+              sessionStorage.setItem('projectData', JSON.stringify(projectData));
+              
+              setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
+            }
+          } else {
+            // Process as BOQ - extract detailed components
+            const result = await parseExcelFile(file, region, country, currency);
+            setParseResult(result);
+            
+            if (result.roomTypes.length === 0) {
+              setError('No valid components found in the BOQ file.');
+            } else {
+              setSuccess(`BOQ file processed! Found ${result.roomTypes.length} components. Ready to create room types.`);
+            }
+          }
+        } catch (err) {
+          setError('Failed to process file. Please check the file format.');
+          console.error('Process error:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      reader.onerror = () => {
+        setError('Error reading file. Please try again.');
+        setLoading(false);
+      };
+      
+      reader.readAsArrayBuffer(file);
+    } catch (err) {
+      setError('Failed to read file. Please try again.');
+      console.error('File read error:', err);
+      setLoading(false);
+    }
+  };
+
+  const handleRoomConfigFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleRoomConfigFileUpload(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const excelFile = files.find(file => file.name.endsWith('.xlsx') || file.name.endsWith('.xls'));
+    
+    if (excelFile) {
+      handleRoomConfigFileUpload(excelFile);
+    } else {
+      setError('Please drop an Excel file (.xlsx or .xls)');
+    }
+  };
+
+  const handleCreateProjectAndContinue = async () => {
+    if (!projectName || !region || !country || !parseResult) {
+      setError('Please fill in all required fields and upload an Excel file');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Check for existing projects to prevent duplicates
+      console.log('Checking for existing projects...');
+      const existingProjectsResponse = await apiService.getProjects({
+        filters: {
+          project_name: { $eq: projectName },
+          region: { $eq: region },
+          country: { $eq: country }
+        }
+      });
+      
+      const existingProjects = existingProjectsResponse.data.data || [];
+      if (existingProjects.length > 0) {
+        setError(`Project "${projectName}" already exists in ${region}/${country}. Please use a different project name.`);
+        setLoading(false);
+        return;
+      }
+
+      // Calculate total project cost
+      const totalHardwareCost = parseResult.roomTypes.reduce((sum, room) => sum + room.total_cost, 0);
+      const totalLabourCost = parseResult.labourCost || 0;
+      const totalMiscellaneousCost = parseResult.miscellaneousCost || 0;
+      const totalCapex = totalHardwareCost + totalLabourCost + totalMiscellaneousCost;
+
+      // Create project
+      const projectData = {
+        project_name: projectName,
+        region,
+        country,
+        currency,
+        capex_amount: parseFloat(capex) || 0, // Leave blank for PM to fill
+        network_cost: parseFloat(networkCost) || 0,
+        labour_cost: parseFloat(labourCost) || parseResult.labourCost || 0,
+        inflation: parseFloat(inflation) || 0,
+        misc_cost: parseFloat(miscCost) || parseResult.miscellaneousCost || 0,
+        notes: `Project created from Excel file: ${parseResult.sourceFile}. Total project estimate: ${totalCapex}`
+      };
+
+      console.log('Creating project with data:', projectData);
+      const projectResponse = await apiService.createProject(projectData);
+      const createdProject = projectResponse.data.data;
+
+      setProjectCreated(true);
+      setSuccess(`Project created successfully! Redirecting to room type creation...`);
+
+      // Store Excel data in sessionStorage for room types page
+      sessionStorage.setItem('excelParseResult', JSON.stringify(parseResult));
+      
+      // Navigate to room types page with project ID
+      setTimeout(() => {
+        router.push(`/room-types?projectId=${createdProject.id}&projectName=${encodeURIComponent(projectName)}`);
+      }, 2000);
+
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error?.message || err.message || 'Unknown error';
+      setError(`Failed to create project: ${errorMessage}`);
+      console.error('Project creation error:', err);
+      console.error('Error response:', err.response?.data);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const headerMap: Record<string, string> = {
+    MANUFACTURER: 'MAKE',
+    MAKE: 'MAKE',
+    MODEL: 'MODEL',
+    'UNIT PRICE': 'UNIT COST',
+    UNIT_PRICE: 'UNIT COST',
+    DESCRIPTION: 'DESCRIPTION',
+    CATEGORY: 'CATEGORY',
+    'SUB-CATEGORY': 'SUB-CATEGORY',
+  };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const normalizeHeader = (header: string): string =>
+    header?.trim()?.toUpperCase()?.replace(/\s+/g, ' ');
 
-    try {
-      setLoading(true);
-      setError(null);
+  function inferLocationFromFileName(fileName: string): { region: string; country: string } {
+    const city = Object.keys(countryRegionMap).find((city) =>
+      fileName.toLowerCase().includes(city.toLowerCase())
+    );
+    return city ? countryRegionMap[city] : { region: '', country: '' };
+  }
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: ExcelRow[] = XLSX.utils.sheet_to_json<ExcelRow>(sheet);
+  const parseWorkbook = (
+    workbook: XLSX.WorkBook,
+    fileName: string,
+    formRegion: string,
+    formCountry: string
+  ): { validComponents: any[]; invalidEntries: any[] } => {
+    const validComponents: any[] = [];
+    const invalidEntries: any[] = [];
+    let { region, country } = formCountry
+      ? { region: formRegion, country: formCountry }
+      : inferLocationFromFileName(fileName);
 
-        const transformedData = jsonData.map((row) => ({
-          room_type: row['room_type'] || '',
-          description: row['description'] || '',
-          make: row['make'] || '',
-          model: row['model'] || '',
-          qty: row['qty'] || 0,
-          unit_cost: row['unit_cost'] || 0,
-        }));
+    if (!region && country) {
+      for (const reg in regionMap) {
+        if (regionMap[reg].includes(country)) {
+          region = reg;
+          break;
+        }
+      }
+    }
 
-        console.log('Transformed JSON:', transformedData);
+    // ---------- STYLE A ----------
+    const avSheet = workbook.Sheets['AV'];
+    if (avSheet) {
+      const sheetRange = XLSX.utils.decode_range(avSheet['!ref'] || '');
+      const headerRowIndex = 4; // Row 5
+      const dataStartIndex = 10; // Row 11
+      const headers: string[] = [];
 
-        for (const item of transformedData) {
-          await axios.post('https://backend.sandyy.dev/api/av-bill-of-materials', {
-            data: item,
-          });
+      for (let C = sheetRange.s.c; C <= sheetRange.e.c; ++C) {
+        const cell = avSheet[XLSX.utils.encode_cell({ r: headerRowIndex, c: C })];
+        const rawHeader = cell ? String(cell.v) : '';
+        const normalized = normalizeHeader(rawHeader);
+        headers.push(headerMap[normalized] || normalized);
+      }
+
+      const currency = avSheet['B2']?.v || countryCurrencyMap[country] || 'USD';
+
+      for (let R = dataStartIndex; R <= sheetRange.e.r; ++R) {
+        const row: Record<string, any> = {};
+        for (let C = sheetRange.s.c; C <= sheetRange.e.c; ++C) {
+          const cell = avSheet[XLSX.utils.encode_cell({ r: R, c: C })];
+          const header = headers[C - sheetRange.s.c];
+          if (header && cell) {
+            row[header] = cell.v;
+          }
         }
 
-        await fetchData();
-      };
-      reader.readAsArrayBuffer(file);
-    } catch (err) {
-      setError('Failed to upload file. Please try again.');
-      console.error('File Upload Error:', err);
-    } finally {
-      setLoading(false);
+        if (!row['MAKE'] || !row['MODEL']) {
+          invalidEntries.push({
+            make: row['MAKE'] || '',
+            model: String(row['MODEL'] || '').trim(),
+            description: row['DESCRIPTION'] || '',
+            unit_cost: parseFloat(row['UNIT COST'] || 0) || 0,
+            currency,
+            region: region || '',
+            country: country || '',
+            component_type: row['CATEGORY'] || '',
+            component_category: row['SUB-CATEGORY'] || '',
+            source_file: fileName,
+            reason: 'Missing make or model',
+          });
+          continue;
+        }
+
+        const unitCost = parseFloat(row['UNIT COST'] || 0) || 0;
+        if (unitCost === 0) {
+          invalidEntries.push({
+            make: row['MAKE'] || '',
+            model: String(row['MODEL'] || '').trim(),
+            description: row['DESCRIPTION'] || '',
+            unit_cost: unitCost,
+            currency,
+            region: region || '',
+            country: country || '',
+            component_type: row['CATEGORY'] || '',
+            component_category: row['SUB-CATEGORY'] || '',
+            source_file: fileName,
+            reason: 'Zero unit cost',
+          });
+          continue;
+        }
+
+        validComponents.push({
+          make: row['MAKE'] || '',
+          model: String(row['MODEL'] || '').trim(),
+          description: row['DESCRIPTION'] || '',
+          unit_cost: unitCost,
+          currency,
+          region: region || '',
+          country: country || '',
+          component_type: row['CATEGORY'] || '',
+          component_category: row['SUB-CATEGORY'] || '',
+          is_active: true,
+          source_file: fileName,
+        });
+      }
+
+      return { validComponents, invalidEntries };
     }
+
+    // ---------- STYLE B ----------
+    workbook.SheetNames.forEach((sheetName) => {
+      if (!sheetName || sheetName.toLowerCase().includes('summary') || sheetName === 'AV') return;
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) return;
+
+      const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+      const headerRow = rows[5];
+      if (!headerRow || headerRow.length < 2) return;
+
+      const headers: string[] = headerRow.map((h: any) => {
+        const normalized = normalizeHeader(String(h));
+        return headerMap[normalized] || normalized;
+      });
+
+      let inferredCurrency = countryCurrencyMap[country] || 'INR';
+
+      for (let i = 9; i < rows.length; i++) {
+        const rowArray = rows[i];
+        const nextRowArray = rows[i + 1] || [];
+        const isEmpty = (arr: any[]) => arr.every((cell) => !cell || String(cell).trim() === '');
+        if (isEmpty(rowArray) && isEmpty(nextRowArray)) break;
+        if (isEmpty(rowArray)) continue;
+
+        const row: Record<string, any> = {};
+        rowArray.forEach((cell, colIndex) => {
+          const key = headers[colIndex];
+          if (key) row[key] = cell;
+        });
+
+        if (!row['MAKE'] || !row['MODEL']) {
+          invalidEntries.push({
+            make: row['MAKE'] || '',
+            model: String(row['MODEL'] || '').trim(),
+            description: row['DESCRIPTION'] || '',
+            unit_cost: parseFloat(row['UNIT COST'] || 0) || 0,
+            currency: inferredCurrency,
+            region: region || '',
+            country: country || '',
+            component_type: row['CATEGORY'] || '',
+            component_category: row['SUB-CATEGORY'] || '',
+            source_file: fileName,
+            room_type: sheetName,
+            reason: 'Missing make or model',
+          });
+          continue;
+        }
+
+        const rawPrice = row['UNIT COST'] || '0';
+        if (typeof rawPrice === 'string') {
+          const match = rawPrice.match(/(₹|\$|€|£|AED|SGD|QAR|ZAR)/);
+          if (match) inferredCurrency = symbolToCurrencyMap[match[0]] || inferredCurrency;
+        }
+
+        const unitCost = parseFloat(String(rawPrice).replace(/[^\d.]/g, '')) || 0;
+        if (unitCost === 0) {
+          invalidEntries.push({
+            make: row['MAKE'] || '',
+            model: String(row['MODEL'] || '').trim(),
+            description: row['DESCRIPTION'] || '',
+            unit_cost: unitCost,
+            currency: inferredCurrency,
+            region: region || '',
+            country: country || '',
+            component_type: row['CATEGORY'] || '',
+            component_category: row['SUB-CATEGORY'] || '',
+            source_file: fileName,
+            room_type: sheetName,
+            reason: 'Zero unit cost',
+          });
+          continue;
+        }
+
+        validComponents.push({
+          make: row['MAKE'] || '',
+          model: String(row['MODEL'] || '').trim(),
+          description: row['DESCRIPTION'] || '',
+          unit_cost: unitCost,
+          currency: inferredCurrency,
+          region: region || '',
+          country: country || '',
+          component_type: row['CATEGORY'] || '',
+          component_category: row['SUB-CATEGORY'] || '',
+          is_active: true,
+          source_file: fileName,
+          room_type: sheetName,
+        });
+      }
+    });
+
+    return { validComponents, invalidEntries };
+  };
+
+  const checkExistingComponents = async (components: any[]): Promise<any[]> => {
+    const newComponents: any[] = [];
+    const newInvalidEntries: any[] = [...invalidEntries]; // Copy existing invalid entries
+
+    for (const component of components) {
+      try {
+        const response = await apiService.getAVComponents({
+          filters: {
+            make: component.make,
+            model: component.model,
+            country: component.country,
+          },
+        });
+
+        const existingComponents = response.data.data || [];
+        const existsWithSamePrice = existingComponents.some((existing: any) => {
+          const attrs = existing.attributes || existing;
+          if (!attrs || typeof attrs.unit_cost === 'undefined') {
+            console.warn(`Invalid response for component ${component.make} ${component.model}:`, existing);
+            return false;
+          }
+          return attrs.unit_cost === component.unit_cost;
+        });
+
+        if (!existsWithSamePrice) {
+          newComponents.push(component);
+        } else {
+          newInvalidEntries.push({
+            ...component,
+            reason: 'Duplicate entry with same unit cost',
+          });
+        }
+      } catch (err) {
+        console.error(`Error checking component ${component.make} ${component.model}:`, err);
+        newInvalidEntries.push({
+          ...component,
+          reason: 'Error checking for duplicates',
+        });
+        newComponents.push(component); // Add component if check fails to avoid data loss
+      }
+    }
+
+    setInvalidEntries(newInvalidEntries);
+    return newComponents;
+  };
+
+  const generateValidationSheet = (invalidEntries: any[]) => {
+    const worksheet = XLSX.utils.json_to_sheet(
+      invalidEntries.map(entry => ({
+        Make: entry.make,
+        Model: entry.model,
+        Description: entry.description,
+        Unit_Cost: entry.unit_cost,
+        Currency: entry.currency,
+        Region: entry.region,
+        Country: entry.country,
+        Component_Type: entry.component_type,
+        Component_Category: entry.component_category,
+        Room_Type: entry.room_type || '',
+        Source_File: entry.source_file,
+        Reason: entry.reason,
+      })),
+      { header: ['Make', 'Model', 'Description', 'Unit_Cost', 'Currency', 'Region', 'Country', 'Component_Type', 'Component_Category', 'Room_Type', 'Source_File', 'Reason'] }
+    );
+
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 20 }, // Make
+      { wch: 20 }, // Model
+      { wch: 40 }, // Description
+      { wch: 15 }, // Unit_Cost
+      { wch: 10 }, // Currency
+      { wch: 15 }, // Region
+      { wch: 15 }, // Country
+      { wch: 20 }, // Component_Type
+      { wch: 20 }, // Component_Category
+      { wch: 15 }, // Room_Type
+      { wch: 30 }, // Source_File
+      { wch: 30 }, // Reason
+    ];
+
+    // Add bold headers
+    XLSX.utils.sheet_add_aoa(worksheet, [['Make', 'Model', 'Description', 'Unit_Cost', 'Currency', 'Region', 'Country', 'Component_Type', 'Component_Category', 'Room_Type', 'Source_File', 'Reason']], { origin: 'A1' });
+    for (let i = 1; i <= 12; i++) {
+      const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: i - 1 })];
+      if (cell) cell.s = { font: { bold: true } };
+    }
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Invalid Entries');
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `validation_report_${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setError('No file selected.');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+    setSuccess(null);
+    setInvalidEntries([]);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const { validComponents, invalidEntries } = parseWorkbook(workbook, file.name, region, country);
+
+        setInvalidEntries(invalidEntries);
+
+        if (!country && invalidEntries.some(entry => !entry.country)) {
+          setError('Warning: No country selected, and some entries could not infer location from file name.');
+        }
+
+        if (validComponents.length === 0) {
+          setError('No valid components found in the file. Download the validation report for details.');
+          setUploading(false);
+          return;
+        }
+
+        const newComponents = await checkExistingComponents(validComponents);
+
+        if (newComponents.length === 0 && invalidEntries.length === 0) {
+          setError('No new components to upload after deduplication.');
+          setUploading(false);
+          return;
+        }
+
+        if (newComponents.length > 0) {
+                  // Create components one by one since there's no bulk endpoint
+        for (const component of newComponents) {
+          await apiService.createAVComponent(component);
+        }
+                  setSuccess(`Successfully uploaded ${newComponents.length} components! ${invalidEntries.length > 0 ? `${invalidEntries.length} entries were skipped.` : ''}`);
+        console.log('✅ Upload successful:', newComponents.length, 'components created');
+        }
+
+        if (invalidEntries.length > 0) {
+          setError(`${invalidEntries.length} entries were skipped. Download the validation report for details.`);
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        setError('Failed to upload file. Please check the file format and try again.');
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Error reading file. Please try again.');
+      setUploading(false);
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-8">
-        <div className="flex space-x-4 border-b border-gray-200">
-          <Link href="/">
-            <span
-              className={`px-4 py-2 text-sm font-medium rounded-t-md ${
-                pathname === '/' ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-blue-700'
-              }`}
-            >
-              Room Configurator
-            </span>
-          </Link>
-          <Link href="/summary">
-            <span
-              className={`px-4 py-2 text-sm font-medium rounded-t-md ${
-                pathname === '/summary' ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-blue-700'
-              }`}
-            >
-              Room Cost
-            </span>
-          </Link>
-          <Link href="/variants">
-            <span
-              className={`px-4 py-2 text-sm font-medium rounded-t-md ${
-                pathname === '/variants' ? 'bg-blue-100 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-blue-700'
-              }`}
-            >
-              Variants
-            </span>
-          </Link>
+    <div className="min-h-screen bg-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Navigation Tabs */}
+        <div className="mb-8">
+          <div className="flex space-x-2 border-b border-gray-200 overflow-x-auto">
+            <Link href="/">
+              <span className="px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap text-gray-600 hover:text-blue-700">
+                Configurator
+              </span>
+            </Link>
+            <Link href="/summary">
+              <span className="px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap bg-blue-100 text-blue-700 border-b-2 border-blue-500">
+                Project Data
+              </span>
+            </Link>
+            <Link href="/room-configuration">
+              <span className="px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap text-gray-600 hover:text-blue-700">
+                Configuration
+              </span>
+            </Link>
+            <Link href="/variants">
+              <span className="px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap text-gray-600 hover:text-blue-700">
+                Variants
+              </span>
+            </Link>
+            <Link href="/dashboard">
+              <span className="px-3 py-2 text-sm font-medium rounded-t-md whitespace-nowrap text-gray-600 hover:text-blue-700">
+                Dashboard
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Project Setup</h1>
+        
+        {/* 5-Minute Workflow Progress */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-blue-800">5-Minute Cost Estimation Workflow</h3>
+            <span className="text-sm text-blue-600 font-medium">Step 1 of 4</span>
+          </div>
+          <div className="flex space-x-2">
+            <div className="flex-1 bg-blue-200 rounded-full h-2">
+              <div className="bg-blue-600 h-2 rounded-full w-1/4"></div>
+            </div>
+            <div className="flex-1 bg-gray-200 rounded-full h-2"></div>
+            <div className="flex-1 bg-gray-200 rounded-full h-2"></div>
+            <div className="flex-1 bg-gray-200 rounded-full h-2"></div>
+          </div>
+          <div className="flex justify-between text-xs text-blue-600 mt-2">
+            <span>Project Setup</span>
+            <span>Room Mapping</span>
+            <span>Configuration</span>
+            <span>Cost Summary</span>
+          </div>
         </div>
       </div>
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Room Cost Summary</h1>
+        
+        {/* Project Details Form - Always visible */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h3>
+          <form onSubmit={(e) => { e.preventDefault(); handleCreateProjectAndContinue(); }} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Region</label>
+                <select
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                >
+                  <option value="">Select Region</option>
+                  {Object.keys(regionMap).map((reg) => (
+                    <option key={reg} value={reg}>{reg}</option>
+                  ))}
+                </select>
+              </div>
 
-      {loading && <p className="text-gray-500 text-lg">Loading...</p>}
-      {error && <p className="text-red-500 text-lg mb-4">{error}</p>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <select
+                  value={country}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  disabled={!region}
+                >
+                  <option value="">Select Country</option>
+                  {(regionMap[region] || []).map((ct: string) => (
+                    <option key={ct} value={ct}>{ct}</option>
+                  ))}
+                </select>
+              </div>
 
-      {!loading && !error && (
-        <div className="mb-12">
-          <div className="overflow-x-auto shadow-md rounded-lg">
-            <table className="min-w-full bg-white border border-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 border-b">Room Type</th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700 border-b">Total Cost ($)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summaryData.length > 0 ? (
-                  summaryData.map((room) => (
-                    <tr key={room.room_type} className="hover:bg-gray-100 transition-colors">
-                      <td className="px-4 py-2 text-sm text-gray-600 border-b">{room.room_type || 'Unknown'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
-                        ${room.total_cost.toFixed(2)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={2} className="px-4 py-2 text-center text-sm text-gray-500 border-b">
-                      No data available
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {!loading && !error && summaryData.length > 0 && (
-        <div className="mb-12">
-          <h2 className="text-2xl font-semibold mb-6 text-gray-800">Cost Distribution by Room Type</h2>
-          <div className="h-[400px] bg-white p-4 rounded-lg shadow-md">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={summaryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="room_type" stroke="#374151" />
-                <YAxis stroke="#374151" />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '4px' }}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                <input
+                  type="text"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                  placeholder="e.g., London Q1 Expansion"
+                  required
                 />
-                <Legend />
-                <Bar dataKey="total_cost" fill="#2563eb" name="Total Cost ($)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+              </div>
 
-      {!loading && !error && (
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Upload AV BoQ Excel File (.xlsx)</label>
-          <input
-            type="file"
-            accept=".xlsx"
-            onChange={handleFileUpload}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-          />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Local Currency</label>
+                <input
+                  type="text"
+                  value={currency}
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Approved IT Capex Amount</label>
+                <input
+                  type="number"
+                  value={capex}
+                  onChange={(e) => setCapex(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Network Cost</label>
+                <input
+                  type="number"
+                  value={networkCost}
+                  onChange={(e) => setNetworkCost(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+
+                              <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Labour Cost 
+                    {region && country && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({getLabourCostPercentage(region, country)}% of hardware costs)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    value={labourCost}
+                    onChange={(e) => setLabourCost(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+                    readOnly={!!parseResult}
+                    placeholder={
+                      region && country 
+                        ? `${getLabourCostPercentage(region, country)}% of hardware costs (auto-calculated)`
+                        : "Select region and country first"
+                    }
+                  />
+                  {region && country && !parseResult && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      Will be calculated as {getLabourCostPercentage(region, country)}% of total hardware costs once file is uploaded
+                    </p>
+                  )}
+                  {parseResult && labourCost && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      Based on {calculateTotalHardwareCost().toLocaleString()} total hardware costs
+                    </p>
+                  )}
+                </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Miscellaneous Cost</label>
+                <input
+                  type="number"
+                  value={miscCost}
+                  onChange={(e) => setMiscCost(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Inflation Rate (%)</label>
+                <input
+                  type="number"
+                  value={inflation}
+                  onChange={(e) => setInflation(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                />
+              </div>
+            </div>
+          </form>
         </div>
-      )}
+
+        {/* Cost Summary - Show when we have room data or region/country selected */}
+        {(parseResult || (region && country)) && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Cost Summary</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {parseResult ? (
+                <>
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-gray-600">Total Room Costs</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(calculateTotalRoomCosts())}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <p className="text-sm text-gray-600">Total Hardware Cost</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(calculateTotalHardwareCost())}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Room costs + Network + Misc
+                    </p>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <p className="text-sm text-gray-600">Labour Cost</p>
+                    <p className="text-xl font-bold text-orange-600">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(parseFloat(labourCost) || 0)}
+                    </p>
+                    {region && country && (
+                      <p className="text-xs text-gray-500">
+                        {getLabourCostPercentage(region, country)}% of hardware costs
+                      </p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <p className="text-sm text-gray-600">Total Room Costs</p>
+                    <p className="text-xl font-bold text-blue-600 text-gray-400">
+                      Upload file to calculate
+                    </p>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <p className="text-sm text-gray-600">Total Hardware Cost</p>
+                    <p className="text-xl font-bold text-green-600 text-gray-400">
+                      Room costs + Network + Misc
+                    </p>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                    <p className="text-sm text-gray-600">Labour Cost</p>
+                    <p className="text-xl font-bold text-orange-600 text-gray-400">
+                      {region && country ? `${getLabourCostPercentage(region, country)}% of hardware costs` : 'Select region/country'}
+                    </p>
+                    {region && country && (
+                      <p className="text-xs text-blue-600">
+                        Will be calculated automatically
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+              
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <p className="text-sm text-gray-600">Network Cost</p>
+                <p className="text-xl font-bold text-purple-600">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency || 'USD'
+                  }).format(parseFloat(networkCost) || 0)}
+                </p>
+              </div>
+              
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-sm text-gray-600">Miscellaneous</p>
+                <p className="text-xl font-bold text-green-600">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: currency || 'USD'
+                  }).format(parseFloat(miscCost) || 0)}
+                </p>
+              </div>
+            </div>
+            
+            {/* Total with Inflation */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              {parseResult ? (
+                <>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-lg font-semibold text-gray-800">Subtotal (Before Inflation)</span>
+                    <span className="text-xl font-bold text-gray-800">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(
+                        calculateTotalRoomCosts() + 
+                        (parseFloat(labourCost) || 0) + 
+                        (parseFloat(networkCost) || 0) + 
+                        (parseFloat(miscCost) || 0)
+                      )}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-600">Inflation ({inflation}%)</span>
+                    <span className="text-sm text-gray-600">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(
+                        (calculateTotalRoomCosts() + 
+                        (parseFloat(labourCost) || 0) + 
+                        (parseFloat(networkCost) || 0) + 
+                        (parseFloat(miscCost) || 0)) * (parseFloat(inflation) / 100)
+                      )}
+                    </span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                    <span className="text-xl font-bold text-gray-900">Total Project Cost</span>
+                    <span className="text-2xl font-bold text-blue-600">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: currency || 'USD'
+                      }).format(
+                        (calculateTotalRoomCosts() + 
+                        (parseFloat(labourCost) || 0) + 
+                        (parseFloat(networkCost) || 0) + 
+                        (parseFloat(miscCost) || 0)) * (1 + parseFloat(inflation) / 100)
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-600 mb-2">Upload your project file to see cost calculations</p>
+                  <p className="text-sm text-gray-500">
+                    Labour cost will be calculated as {region && country ? `${getLabourCostPercentage(region, country)}%` : 'X%'} of hardware costs
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* File Upload Section - Always visible */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Upload Project File</h3>
+          <p className="text-gray-600 mb-6">Upload your SRM or BOQ file to continue with the project setup.</p>
+            
+            {/* File Upload Area */}
+            <div 
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                isDragOver 
+                  ? 'border-blue-400 bg-blue-50' 
+                  : 'border-gray-300 hover:border-blue-400'
+              }`}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="space-y-4">
+                <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <div>
+                  <p className="text-lg font-medium text-gray-900">Drop your file here</p>
+                  <p className="text-sm text-gray-500">or click to browse</p>
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleRoomConfigFileInputChange}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Choose File
+                </button>
+                <p className="text-xs text-gray-500">
+                  Supports: SRM (Space Requirement Matrix) and BOQ (Bill of Quantities) files<br/>
+                  Formats: .xlsx, .xls, .csv
+                </p>
+              </div>
+            </div>
+            
+            {/* File Processing Status */}
+            {parseResult && (
+              <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-green-800 font-medium">
+                        {fileType === 'SRM' ? 'SRM File' : 'BOQ File'} processed successfully!
+                      </p>
+                      <p className="text-green-700 text-sm">
+                        Found {parseResult.roomTypes.length} {fileType === 'SRM' ? 'room types' : 'components'} • Ready to continue
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex space-x-3">
+                    {fileType === 'SRM' ? (
+                      <Link href="/room-mapping">
+                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                          Continue to Room Mapping →
+                        </button>
+                      </Link>
+                    ) : (
+                      <Link href="/room-types">
+                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                          Continue to Room Types →
+                        </button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+
+        {/* Error and Success Messages */}
+        {error && (
+          <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="text-red-800 font-medium">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {success && (
+          <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <p className="text-green-800 font-medium">{success}</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

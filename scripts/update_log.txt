@@ -1,0 +1,397 @@
+[2025-07-24T18:19:31.122Z] Starting component categorization
+[2025-07-24T18:19:31.195Z] Fetched 100 components from page 2
+[2025-07-24T18:19:31.222Z] Fetched 100 components from page 3
+[2025-07-24T18:19:31.245Z] Fetched 100 components from page 4
+[2025-07-24T18:19:31.261Z] Fetched 68 components from page 4
+[2025-07-24T18:19:31.261Z] 📦 Total components fetched: 368
+[2025-07-24T18:19:31.361Z] ✅ Updated AD-P.SUB
+Black (RAL 9011) /
+White (RAL 9010) → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.385Z] ✅ Updated 72340 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.400Z] ✅ Updated 72352 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.415Z] ✅ Updated Core 8 Flex → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.433Z] ✅ Updated SLQSE-8N-P → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.454Z] ✅ Updated SLQUD-8N-P → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.468Z] ✅ Updated MP-A20V → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.487Z] ✅ Updated QM55C → Video / Display
+[2025-07-24T18:19:31.531Z] ✅ Updated EAP245 → Accessories / Mounting
+[2025-07-24T18:19:31.562Z] ✅ Updated Crestron HD-MD4X1-4KZ-E → Video / Switchers
+[2025-07-24T18:19:31.587Z] ✅ Updated Poly Studio X50 with Poly TC8 → Audio / Speakers
+[2025-07-24T18:19:31.603Z] ✅ Updated Crestron DMCI → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.614Z] ✅ Updated Poly Trio C60 Spiderphone → VC / Video Codec
+[2025-07-24T18:19:31.624Z] ✅ Updated Crestron Airmedia AM-3100 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.634Z] ✅ Updated BIAMP TesiraForte X400 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.646Z] ✅ Updated Shure MXA 920 → Audio / Microphones
+[2025-07-24T18:19:31.656Z] ✅ Updated Poly Studio X70 with Poly TC8 → Audio / Speakers
+[2025-07-24T18:19:31.668Z] ✅ Updated Dell D6000 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.679Z] ✅ Updated Custom/Service
+
+-> See Detailed Specification CB → Cabling / Cables
+[2025-07-24T18:19:31.690Z] ✅ Updated Crestron TSS-1070-B-S-LB KIT → Video / Display
+[2025-07-24T18:19:31.701Z] ✅ Updated Crestron TSW-1070-MUMK-B → Accessories / Mounting
+[2025-07-24T18:19:31.712Z] ✅ Updated Catchbox plus Double + Wireless Charger → Audio / Microphones
+[2025-07-24T18:19:31.722Z] ✅ Updated Poly E70 Speaker Tracking Camera + 3 Year Poly Plus → Audio / Speakers
+[2025-07-24T18:19:31.732Z] ✅ Updated Poly G7500 Base Unit + 3 year Poly Plus → VC / Video Codec
+[2025-07-24T18:19:31.746Z] ✅ Updated Poly TC8 Touchpanel + 3 year Poly Plus → VC / Video Codec
+[2025-07-24T18:19:31.759Z] ✅ Updated Crestron DMC-HDO → Video / Switchers
+[2025-07-24T18:19:31.770Z] ✅ Updated Tesira EX-UBT → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.782Z] ✅ Updated Tesira EX-AEC → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.792Z] ✅ Updated WM65B → Video / Display
+[2025-07-24T18:19:31.803Z] ✅ Updated WM75B → Video / Display
+[2025-07-24T18:19:31.817Z] ✅ Updated QM85C → Video / Display
+[2025-07-24T18:19:31.828Z] ✅ Updated TS525TU → Video / Display
+[2025-07-24T18:19:31.838Z] ✅ Updated LVS1U → Accessories / Mounting
+[2025-07-24T18:19:31.848Z] ✅ Updated Poly X72 → VC / Video Codec
+[2025-07-24T18:19:31.859Z] ✅ Updated Poly+ Three year → VC / Video Codec
+[2025-07-24T18:19:31.872Z] ✅ Updated 875M6AA → Audio / Microphones
+[2025-07-24T18:19:31.886Z] ✅ Updated 875M4AA → Audio / Microphones
+[2025-07-24T18:19:31.896Z] ✅ Updated 875H1AA → VC / Video Codec
+[2025-07-24T18:19:31.906Z] ✅ Updated Sync 60 → Audio / Speakers
+[2025-07-24T18:19:31.916Z] ✅ Updated RTK-X57 → VC / Video Codec
+[2025-07-24T18:19:31.925Z] ✅ Updated 70-1046-02 + 60-1385-10 + 2 x 60-1783-02 + 2 x 70-636-02 → Cabling / Cables
+[2025-07-24T18:19:31.935Z] ✅ Updated 70-1185-02 + 60-1385-10 +  60-1782-10 + 60-1782-10 + 2 x 70-090-11 → Cabling / Cables
+[2025-07-24T18:19:31.946Z] ✅ Updated MBU 123 → Accessories / Mounting
+[2025-07-24T18:19:31.961Z] ✅ Updated 26-663-06 → Cabling / Cables
+[2025-07-24T18:19:31.972Z] ✅ Updated DM-NVX-E20-2G-B-T → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.983Z] ✅ Updated DM-NVX-E30 → Uncategorized / Uncategorized
+[2025-07-24T18:19:31.995Z] ✅ Updated PW-2412WU → Accessories / Mounting
+[2025-07-24T18:19:32.006Z] ✅ Updated AM-3100-WF → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.015Z] ✅ Updated TSW-1070-B-S → Accessories / Mounting
+[2025-07-24T18:19:32.024Z] ✅ Updated NA → Accessories / Mounting
+[2025-07-24T18:19:32.034Z] ✅ Updated UD Mounting PSU F100 → Accessories / Mounting
+[2025-07-24T18:19:32.049Z] ✅ Updated CAB-USBC-T200A → Audio / Microphones
+[2025-07-24T18:19:32.061Z] ✅ Updated UCX-4x3-HCM40 → Video / Switchers
+[2025-07-24T18:19:32.070Z] ✅ Updated MPA-40V → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.080Z] ✅ Updated NA → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.091Z] ✅ Updated NA → Accessories / Mounting
+[2025-07-24T18:19:32.102Z] ✅ Updated Aura-X → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.113Z] ✅ Updated 60-1914-01A → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.125Z] ✅ Updated 26-663-03 → Cabling / Cables
+[2025-07-24T18:19:32.138Z] ✅ Updated 26-726-25 → Cabling / Cables
+[2025-07-24T18:19:32.155Z] ✅ Updated FP-G2-DM-B-T → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.166Z] ✅ Updated DM-NVX-D200 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.175Z] ✅ Updated HD-DA2-4KZ-E → Cabling / Cables
+[2025-07-24T18:19:32.189Z] ✅ Updated CP4N → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.199Z] ✅ Updated TSW-UMB-70 → Accessories / Mounting
+[2025-07-24T18:19:32.212Z] ✅ Updated 60-1678-01 → Cabling / Cables
+[2025-07-24T18:19:32.222Z] ✅ Updated UCX-2x1-HC40 → Video / Switchers
+[2025-07-24T18:19:32.231Z] ✅ Updated UD Mounting plate F100 → Accessories / Mounting
+[2025-07-24T18:19:32.240Z] ✅ Updated USB3SAB10M → Cabling / Cables
+[2025-07-24T18:19:32.253Z] ✅ Updated 910-2100-009 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.264Z] ✅ Updated 986-000052 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.273Z] ✅ Updated Brio 505 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.284Z] ✅ Updated C925e → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.295Z] ✅ Updated ANI4IN → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.306Z] ✅ Updated CMS 503ICT BM → Audio / Speakers
+[2025-07-24T18:19:32.314Z] ✅ Updated NA → Audio / Speakers
+[2025-07-24T18:19:32.324Z] ✅ Updated ThinkVision T34w-30 → Video / Display
+[2025-07-24T18:19:32.339Z] ✅ Updated Service → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.348Z] ✅ Updated Service → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.358Z] ✅ Updated Service → Audio / Speakers
+[2025-07-24T18:19:32.368Z] ✅ Updated Core 8 Flex → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.377Z] ✅ Updated unD6IO-BT → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.386Z] ✅ Updated H755-BG → Accessories / Mounting
+[2025-07-24T18:19:32.403Z] ✅ Updated NA → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.412Z] ✅ Updated NA → Cabling / Cables
+[2025-07-24T18:19:32.423Z] ✅ Updated Various → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.432Z] ✅ Updated Service → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.442Z] ✅ Updated Service → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.456Z] ✅ Updated Service → Control / Room Controller
+[2025-07-24T18:19:32.466Z] ✅ Updated Service → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.476Z] ✅ Updated LA-123 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.489Z] ✅ Updated LA-161 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.498Z] ✅ Updated LA-165 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.509Z] ✅ Updated LR-4200-072 → Video / Display
+[2025-07-24T18:19:32.525Z] ✅ Updated LT-800-72-01 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.536Z] ✅ Updated XMV8280-D → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.550Z] ✅ Updated SPA2-200 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.560Z] ✅ Updated DDB-BTN44 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.570Z] ✅ Updated TesiraFORTE X1600 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.580Z] ✅ Updated MXA310 → Audio / Microphones
+[2025-07-24T18:19:32.591Z] ✅ Updated AD-P.SAT → Audio / Speakers
+[2025-07-24T18:19:32.612Z] ✅ Updated Studio X52 → Audio / Speakers
+[2025-07-24T18:19:32.635Z] ✅ Updated DM-RMC-4KZ-SCALER-C → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.645Z] ✅ Updated DM-TX-4KZ-100-C-1G → Cabling / Cables
+[2025-07-24T18:19:32.667Z] ✅ Updated Studio G62 → VC / Video Codec
+[2025-07-24T18:19:32.709Z] ✅ Updated C2N-CBD-P-*-S → Accessories / Mounting
+[2025-07-24T18:19:32.723Z] ✅ Updated TS-1070-W(B)-S → Control / Room Controller
+[2025-07-24T18:19:32.734Z] ✅ Updated TC10 → VC / Video Codec
+[2025-07-24T18:19:32.748Z] ✅ Updated Studio E70 → VC / Video Codec
+[2025-07-24T18:19:32.760Z] ✅ Updated 139112 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.772Z] ✅ Updated EX-UBT → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.781Z] ✅ Updated MXA920W-S → Audio / Microphones
+[2025-07-24T18:19:32.790Z] ✅ Updated Control 227 CT - MTC-RG6/8 → Audio / Speakers
+[2025-07-24T18:19:32.800Z] ✅ Updated ULXD2/B58 → Audio / Microphones
+[2025-07-24T18:19:32.811Z] ✅ Updated M651 → Video / Display
+[2025-07-24T18:19:32.821Z] ✅ Updated M981 → Video / Display
+[2025-07-24T18:19:32.831Z] ✅ Updated U-TAP SDI → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.842Z] ✅ Updated Cable Cubby 1402 → Cabling / Cables
+[2025-07-24T18:19:32.856Z] ✅ Updated Cable Cubby 700 → Cabling / Cables
+[2025-07-24T18:19:32.866Z] ✅ Updated DM-NVX-D30 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.876Z] ✅ Updated DMF-CI-8 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.886Z] ✅ Updated TMK 102 R → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.897Z] ✅ Updated CP4N → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.907Z] ✅ Updated PT-REQ80U → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.918Z] ✅ Updated AS3LDP7 → Accessories / Mounting
+[2025-07-24T18:19:32.927Z] ✅ Updated RPA Series → Accessories / Mounting
+[2025-07-24T18:19:32.936Z] ✅ Updated 139111 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.945Z] ✅ Updated Control 226C/T → Audio / Speakers
+[2025-07-24T18:19:32.955Z] ✅ Updated TesiraFORTE X800 → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.965Z] ✅ Updated ULXD4Q → Uncategorized / Uncategorized
+[2025-07-24T18:19:32.984Z] ✅ Updated ULXD1 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.071Z] ✅ Updated WL183MB/O-TQG → Audio / Microphones
+[2025-07-24T18:19:33.100Z] ✅ Updated M551 → Video / Display
+[2025-07-24T18:19:33.114Z] ✅ Updated M751 → Video / Display
+[2025-07-24T18:19:33.124Z] ✅ Updated AM-3200 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.135Z] ✅ Updated Studio X30 → Audio / Speakers
+[2025-07-24T18:19:33.146Z] ✅ Updated Cable Cubby 1402 → Cabling / Cables
+[2025-07-24T18:19:33.156Z] ✅ Updated DM-RMC-4KZ-100-C → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.167Z] ✅ Updated HD-MD4X1-4K-E → Video / Switchers
+[2025-07-24T18:19:33.176Z] ✅ Updated DM-NVX-E30 → Cabling / Cables
+[2025-07-24T18:19:33.187Z] ✅ Updated TSW-1070-W(B)-S → Accessories / Mounting
+[2025-07-24T18:19:33.199Z] ✅ Updated PTZ330 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.213Z] ✅ Updated Smart Videohub Clean Switch 12x12 → Video / Switchers
+[2025-07-24T18:19:33.224Z] ✅ Updated TS525TU → Accessories / Mounting
+[2025-07-24T18:19:33.235Z] ✅ Updated 9010-05000-110V → Video / Display
+[2025-07-24T18:19:33.245Z] ✅ Updated SPA2-60 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.255Z] ✅ Updated SPA4-100 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.269Z] ✅ Updated DDB-BTN44 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.279Z] ✅ Updated TeamConnect Ceiling 2 → Audio / Microphones
+[2025-07-24T18:19:33.293Z] ✅ Updated Control 226C/T → Audio / Speakers
+[2025-07-24T18:19:33.305Z] ✅ Updated Control 227 CT - MTC-RG6/8 → Audio / Speakers
+[2025-07-24T18:19:33.315Z] ✅ Updated Tesira Forte DAN VT → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.325Z] ✅ Updated ULXD4D → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.334Z] ✅ Updated ULXD4Q → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.343Z] ✅ Updated ULXD2/B58 → Audio / Microphones
+[2025-07-24T18:19:33.353Z] ✅ Updated ULXD1 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.362Z] ✅ Updated WL183 → Audio / Microphones
+[2025-07-24T18:19:33.375Z] ✅ Updated M491 → Video / Display
+[2025-07-24T18:19:33.386Z] ✅ Updated V864Q → Video / Display
+[2025-07-24T18:19:33.396Z] ✅ Updated M551 → Video / Display
+[2025-07-24T18:19:33.405Z] ✅ Updated M651 → Video / Display
+[2025-07-24T18:19:33.414Z] ✅ Updated V754Q → Video / Display
+[2025-07-24T18:19:33.422Z] ✅ Updated AM-3200 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.433Z] ✅ Updated Studio X50 → Audio / Speakers
+[2025-07-24T18:19:33.449Z] ✅ Updated Cable Cubby 700 → Cabling / Cables
+[2025-07-24T18:19:33.459Z] ✅ Updated AT-OME-EX-TX → Cabling / Cables
+[2025-07-24T18:19:33.468Z] ✅ Updated DM-NVX-D30 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.477Z] ✅ Updated DM-NVX-E30 → Cabling / Cables
+[2025-07-24T18:19:33.489Z] ✅ Updated TMK 120 R → Accessories / Mounting
+[2025-07-24T18:19:33.502Z] ✅ Updated DM-NVX-DIR-80 → Video / Switchers
+[2025-07-24T18:19:33.511Z] ✅ Updated TS-1070-W(B)-S → Control / Room Controller
+[2025-07-24T18:19:33.522Z] ✅ Updated 1BSRAM-VXP-S → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.531Z] ✅ Updated Studio E70 → VC / Video Codec
+[2025-07-24T18:19:33.540Z] ✅ Updated G7500 → VC / Video Codec
+[2025-07-24T18:19:33.550Z] ✅ Updated DM-RMC-4KZ-100-C → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.561Z] ✅ Updated AT-OME-RX21 → Video / Switchers
+[2025-07-24T18:19:33.570Z] ✅ Updated TVF 0.9 4x4 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.579Z] ✅ Updated PTZ-IP20 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.588Z] ✅ Updated IV-CAMA3-20-N-W-1B → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.601Z] ✅ Updated PT-REQ80U → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.610Z] ✅ Updated LSTU → Accessories / Mounting
+[2025-07-24T18:19:33.619Z] ✅ Updated TS525TU → Accessories / Mounting
+[2025-07-24T18:19:33.628Z] ✅ Updated LSM1U → Accessories / Mounting
+[2025-07-24T18:19:33.637Z] ✅ Updated E-550 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.646Z] ✅ Updated Studio X30 → Audio / Speakers
+[2025-07-24T18:19:33.658Z] ✅ Updated Studio X70 → Audio / Speakers
+[2025-07-24T18:19:33.667Z] ✅ Updated Cable Cubby 700 → Cabling / Cables
+[2025-07-24T18:19:33.676Z] ✅ Updated DM-TX-4KZ-100-C-1G → Cabling / Cables
+[2025-07-24T18:19:33.687Z] ✅ Updated DM-NVX-D30C → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.714Z] ✅ Updated DM-NVX-E30C → Cabling / Cables
+[2025-07-24T18:19:33.723Z] ✅ Updated DMF-CI-8 → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.734Z] ✅ Updated 70-1066-04 → Cabling / Cables
+[2025-07-24T18:19:33.743Z] ✅ Updated CP4N → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.753Z] ✅ Updated IV-CAMPTZ-20-N-W-1B → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.766Z] ✅ Updated RCU2S-E70-CE → VC / Video Codec
+[2025-07-24T18:19:33.777Z] ✅ Updated SC-SDA → VC / Video Codec
+[2025-07-24T18:19:33.787Z] ✅ Updated LTTU → Accessories / Mounting
+[2025-07-24T18:19:33.797Z] ✅ Updated XTM1U → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.812Z] ✅ Updated MTTU → Accessories / Mounting
+[2025-07-24T18:19:33.822Z] ✅ Updated 142023EC → Uncategorized / Uncategorized
+[2025-07-24T18:19:33.832Z] ✅ Updated M491 → Video / Display
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped MSM1U: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped FCAV1U: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped 2200-86270-102: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped 2215-86418-001: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped 70-1185-02: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.832Z] ⏭️ Skipped 70-270-01: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 70-267-01: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 70-1080-02: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped M551: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 2200-87090-001: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 2215-87372-001: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 508291: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped XTM1U: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped V984Q: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped QIO-ML4i: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped SDHC-32C10-1(M): No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped NC-12x80: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped MCM1: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped MXW1: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped C–MHM/MHM–6: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped CA–HM–25: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped 507488: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped AD-C6T-LP: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped M651: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped QIO-RMK: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped AD-C6T-LP: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.833Z] ⏭️ Skipped LPA69-466: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped MXW2/SM86: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped QM55C: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped U3425WE: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped FT2-700-ELEC-PTL-B /
+FT2-700-ELEC-PTL-AL: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped P85830312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped P88155312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped 8D8L1AA#ACJ: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped P69390362: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped BC–UNIKAT/LSHF–300M: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped FT2A-PLT-PT-10 (6508414): No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped AVFP-HDMI+USB3.0: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped 842D2AA#ACJ: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped Enterprise Whiteboard Camera + HDMI Cast: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped AVFP-HDMI: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped LPA37-696: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped C-USB31/CA-3: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped 320600000: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped MX150B/O-TQG: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped QM75C: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped QM65C: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.834Z] ⏭️ Skipped C–USB3/AB–6: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped VESA Mounting Kit: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped HD-MD4X1-4KZ-E: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped FT2-202-MECH-PTL-B /
+FT2-202-MECH-PTL-AL: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped C–MHM/MHM–10: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped P87625312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped USB3SAA3MBK: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped 65" FLIP DISPLAY: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped 842D4AA#ACJ: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped QM50C: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped 85X03AA: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped BC-1T-300M: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped Icron Ranger 2304: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.835Z] ⏭️ Skipped TSW-770/1070-MSMK-ANG-B-S  /
+TSW-770/1070-MSMK-ANG-W-S: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 875H1AA: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped PW-2407WU
+6503160: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped CA–HM–35: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 875R9AA: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 8L531AA: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped C–USB/AB–6: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped CAT6/7: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped FCA112: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 60-1782-10: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 60-1783-02: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped 30FA004PUK: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped QIO-PSU: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped I/O USB Bridge: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.836Z] ⏭️ Skipped FCA520: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped MXWNCS8: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped NEATBOARD-SE: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped TesiraFORTÉ X 400​: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped CORE 610: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped QIO-L4o: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped GS-8031: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped 2000C: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped MXWAPT8: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped SPA2-200: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped FCAXV1U: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped Netshelter SX 42U 600MM x1200mm: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped LPAUB: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped NEATBOARD-FLOORSTAND: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped FT2A-PLT-BLANK-10 (6508412): No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped CON-RJ45: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped TSS-770-B-S-LB KIT /
+TSS-770-W-S-LB KIT: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped 2215-87419-001 / 875K8AA: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.837Z] ⏭️ Skipped 875K6AA: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped QM85C: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped USB-EXT-3 KIT: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped V12H004Y0B
+(ELPLX02WS): No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped DM-NVX-E20-2G-B-T /
+DM-NVX-E20-2G-W-T: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped 4K2USB3: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped C–USB/AB–10: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped FP-G2-DM-B-T /
+FP-G2-DM-W-T: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped HD-TXC-4KZ-101: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped P85860312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped unD6IO-BT: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped TSW-1070-B-S /
+TSW-1070-W-S: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped WM65R: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped VS-KB30: No changes needed (type: Control, category: Room Controller)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped SLQSE-110-P: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.838Z] ⏭️ Skipped XT1144: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped CP1: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped INSTALLATION ACCESSORIES: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped INSTALLATION ACCESSORIES: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped FT2A-PWR-UN-1-BASIC (6508440): No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped FT2A-CHGR-USBA/C (6508420): No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped AD-C6T-LPZB: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped CP4N: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped C–USBC/HM–10: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped C–USB/AA–15: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped BC-2S-300M: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped P88280312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped 874T5AA#ACJ: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped MXA310B /
+MXA310W: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped AD-C305BG: No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped 92L53AA#ACJ: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped CUSTOM: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped HD-RXC-4KZ-101: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped EB-PU2010W: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.839Z] ⏭️ Skipped CUSTOM: No changes needed (type: Video, category: Display)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped USB-EXT-2-REMOTE: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped VC-TR40: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped MXW2/SM58: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped DM-NVX-D200: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped INSTALLATION ACCESSORIES: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped INSTALLATION ACCESSORIES: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped DIN DALI 2: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped C–USB/CA–6: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped CMK-PROJ: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped CAT6A: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped DM-NVX-E20: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped 85X03AA#ACJ: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped P37760312: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped SPA2-60: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped TS-1070-B-S /
+TS-1070-W-S: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped 875K5AA: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped INTELLIMIX P300: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped LPA72-464: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.840Z] ⏭️ Skipped PW-2407WUL
+6503377: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped FP-G1-B-T /
+FP-G1-W-T: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped C2NI-CB-B-T /
+C2NI-CB-W-T: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped AVFP-USB: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped 123" EL(16:10 AR) ALR TAB TENSIONED SCREEN WITH LVC: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped EMCEE200: No changes needed (type: Video, category: Switchers)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped CMK-CAMERA: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped USB-EXT-2-LOCAL-1G-B /
+USB-EXT-2-LOCAL-1G-W: No changes needed (type: Cabling, category: Cables)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped VC-R31: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MXWAPT8=-Z11: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MP-A40V: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped IRP2: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped 83Z50AA#ACJ: No changes needed (type: VC, category: Video Codec)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MX153T/O-TQG: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MXWNCS8-IN: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped WL185-X: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped AD-P6T
+Black (RAL 9011) /
+White (RAL 9010): No changes needed (type: Audio, category: Speakers)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MXW1/O=-Z11: No changes needed (type: Audio, category: Microphones)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped CORE 110f: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped TSW-1070-MSMK-B-S /
+TSW-1070-MSMK-W-S: No changes needed (type: Accessories, category: Mounting)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped PlayStation5 Console (slim): No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] ⏭️ Skipped MPQ03HN/A: No changes needed (type: Uncategorized, category: Uncategorized)
+[2025-07-24T18:19:33.841Z] 🎉 Done categorizing all components! Updated: 201, Skipped: 167, Failed: 0

@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import Select from 'react-select';
+import { apiService, fetchAllPages } from '../lib/api';
 
 interface DefaultRoomConfig {
   id: number;
@@ -43,15 +43,12 @@ export default function RoomCostPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [configRes, legacyRes] = await Promise.all([
-          axios.get(
-            `https://backend.sandyy.dev/api/default-room-configs?filters[sub_type][$eq]=${selectedSubType.value}&pagination[pageSize]=100`
-          ),
-          axios.get('https://backend.sandyy.dev/api/room-costs?pagination[pageSize]=100'),
+        const [configs, legacies] = await Promise.all([
+          fetchAllPages('/default-room-configs', {
+            'filters[sub_type][$eq]': selectedSubType.value
+          }),
+          fetchAllPages('/room-costs')
         ]);
-
-        const configs = configRes.data?.data || [];
-        const legacies = legacyRes.data?.data || [];
 
         setRoomConfigs(configs);
         setLegacyCosts(legacies);
@@ -87,8 +84,29 @@ export default function RoomCostPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Room Costs Summary</h1>
+    <div className="container mx-auto p-6">
+      {/* Navigation Tabs */}
+      <div className="mb-8">
+        <div className="flex space-x-4 border-b border-gray-200">
+          <a href="/" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+            Room Configurator
+          </a>
+          <a href="/summary" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+            Room Cost
+          </a>
+          <a href="/variants" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+            Variants
+          </a>
+          <a href="/room-types" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+            Room Types
+          </a>
+          <a href="/dashboard" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+            Dashboard
+          </a>
+        </div>
+      </div>
+
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">Room Costs Summary</h1>
 
       <div className="mb-6">
         <label className="block text-sm font-medium mb-1">Select Room Sub-Type</label>
