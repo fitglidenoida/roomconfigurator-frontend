@@ -413,6 +413,7 @@ export default function ProjectMetadataForm() {
           sessionStorage.setItem('srmData', JSON.stringify(srmData));
           
           // Store project details for room mapping page
+          // For SRM: Use manual input or calculated percentages (no extraction)
           const projectData = {
             region,
             country,
@@ -420,11 +421,19 @@ export default function ProjectMetadataForm() {
             projectName,
             capex,
             networkCost,
-            labourCost,
-            miscCost,
+            labourCost, // Use manual input for SRM
+            miscCost,   // Use manual input for SRM
             inflation
           };
           sessionStorage.setItem('projectData', JSON.stringify(projectData));
+          
+          // Debug: Log SRM cost handling
+          console.log('SRM Flow - Cost handling:', {
+            manualLabourCost: labourCost,
+            manualMiscCost: miscCost,
+            calculatedLabourPercentage: getLabourCostPercentage(region, country),
+            note: 'SRM uses manual input or calculated percentages (no extraction)'
+          });
           
           setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
         }
@@ -440,6 +449,7 @@ export default function ProjectMetadataForm() {
             await createRoomInstancesAndAVBOQ(result, region, country, currency);
             
             // Store project details for consistency with SRM flow
+            // For BOQ: Use extracted costs from file, fallback to manual input
             const projectData = {
               region,
               country,
@@ -734,6 +744,7 @@ export default function ProjectMetadataForm() {
       const totalCapex = totalHardwareCost + totalLabourCost + totalMiscellaneousCost;
 
       // Create project
+      // Cost priority: Manual input > Extracted from file > 0
       const projectData = {
         project_name: projectName,
         region,
@@ -741,9 +752,9 @@ export default function ProjectMetadataForm() {
         currency,
         capex_amount: parseFloat(capex) || 0, // Leave blank for PM to fill
         network_cost: parseFloat(networkCost) || 0,
-        labour_cost: parseFloat(labourCost) || parseResult.labourCost || 0,
+        labour_cost: parseFloat(labourCost) || parseResult.labourCost || 0, // Manual > Extracted > 0
         inflation: parseFloat(inflation) || 0,
-        misc_cost: parseFloat(miscCost) || parseResult.miscellaneousCost || 0,
+        misc_cost: parseFloat(miscCost) || parseResult.miscellaneousCost || 0, // Manual > Extracted > 0
         notes: `Project created from Excel file: ${parseResult.sourceFile}. Total project estimate: ${totalCapex}`
       };
 
