@@ -306,11 +306,10 @@ export default function ProjectMetadataForm() {
           const srmRoom = {
             id: `room-${roomId}`,
             room_name: roomType,
-            room_type: roomType,
             space_type: spaceType.toLowerCase().includes('i-space') ? 'i-space' : 'we-space',
-            category: spaceType,
             count: parseInt(count.toString()) || 0,
-            status: 'pending'
+            category: spaceType,
+            description: `From SRM: ${roomType} (Count: ${count})`
           };
           
           srmData.push(srmRoom);
@@ -325,16 +324,12 @@ export default function ProjectMetadataForm() {
           throw new Error('No valid SRM data found. Please ensure your file has Space Type, Room Type, and Count columns.');
         }
         
-        // Create room mappings (simplified for SRM)
-        const roomMappings = srmData.map((room: any, index: number) => ({
+        // Create room mappings (unmapped initially - users will map them)
+        const roomMappings = srmData.map((room: any) => ({
           srm_room_id: room.id,
           room_name: room.room_name,
-          status: 'mapped',
-          selected_room_type: {
-            id: index + 1,
-            name: room.room_type,
-            room_type: room.room_type.toLowerCase().replace(/\s+/g, '-')
-          }
+          status: 'unmapped', // Start as unmapped - users will map them
+          suggested_room_types: [] // Will be populated in room mapping page
         }));
         
         // Create bill of materials (empty for SRM - will be populated in configuration)
@@ -352,9 +347,9 @@ export default function ProjectMetadataForm() {
         // Extract room types from SRM data
         const roomTypes = srmData.map((room: any, index: number) => ({
           id: index + 1,
-          name: room.room_type,
-          room_type: room.room_type.toLowerCase().replace(/\s+/g, '-'),
-          description: room.room_type,
+          name: room.room_name,
+          room_type: room.room_name.toLowerCase().replace(/\s+/g, '-'),
+          description: room.description,
           space_type: room.space_type,
           category: room.category
         }));

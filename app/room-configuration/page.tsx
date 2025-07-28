@@ -66,6 +66,12 @@ export default function RoomConfigurationPage() {
         const roomMappings = sessionStorage.getItem('roomMappings');
         const projectData = sessionStorage.getItem('projectData');
         
+        console.log('SessionStorage data check:', {
+          srmData: srmData ? 'Found' : 'Missing',
+          roomMappings: roomMappings ? 'Found' : 'Missing', 
+          projectData: projectData ? 'Found' : 'Missing'
+        });
+        
         if (!srmData || !roomMappings || !projectData) {
           console.log('Missing data in sessionStorage:', { srmData: !!srmData, roomMappings: !!roomMappings, projectData: !!projectData });
           setError('No room mapping data found. Please complete the room mapping step first.');
@@ -77,6 +83,12 @@ export default function RoomConfigurationPage() {
         const parsedRoomMappings = JSON.parse(roomMappings);
         const parsedProjectData = JSON.parse(projectData);
         
+        console.log('Parsed data:', {
+          srmData: parsedSrmData,
+          roomMappings: parsedRoomMappings,
+          projectData: parsedProjectData
+        });
+        
         // Set project currency to avoid hydration issues
         setProjectCurrency(parsedProjectData.currency || 'USD');
         
@@ -87,7 +99,10 @@ export default function RoomConfigurationPage() {
           .filter((mapping: any) => mapping.status === 'mapped' || mapping.status === 'new_room')
           .map((mapping: any) => {
             const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
-            if (!srmRoom) return null;
+            if (!srmRoom) {
+              console.log(`No SRM room found for mapping: ${mapping.srm_room_id}`);
+              return null;
+            }
 
             return {
               id: mapping.srm_room_id,

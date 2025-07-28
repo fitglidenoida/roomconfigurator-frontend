@@ -55,6 +55,11 @@ export default function RoomMappingPage() {
     const srmDataString = sessionStorage.getItem('srmData');
     const projectDataString = sessionStorage.getItem('projectData');
     
+    console.log('Room mapping - SessionStorage check:', {
+      srmData: srmDataString ? 'Found' : 'Missing',
+      projectData: projectDataString ? 'Found' : 'Missing'
+    });
+    
     if (srmDataString) {
       try {
         const srmData = JSON.parse(srmDataString);
@@ -73,13 +78,16 @@ export default function RoomMappingPage() {
     if (projectDataString) {
       try {
         const projectData = JSON.parse(projectDataString);
+        console.log('Loaded project data for auto-population:', projectData);
         setSelectedRegion(projectData.region || '');
         setSelectedCountry(projectData.country || '');
         setProjectCurrency(projectData.currency || 'USD');
-        console.log('Loaded project data:', projectData);
+        console.log('Auto-set region/country:', { region: projectData.region, country: projectData.country });
       } catch (error) {
         console.error('Error parsing project data:', error);
       }
+    } else {
+      console.log('No project data found in sessionStorage');
     }
     
 
@@ -101,46 +109,60 @@ export default function RoomMappingPage() {
   const fetchExistingRoomTypes = async () => {
     try {
       setLoading(true);
+      console.log('Fetching room types with criteria:', { selectedCountry, selectedRegion, showOtherRegions, searchTerm });
+      
       const roomTypes = await fetchAllPages('/room-types');
+      console.log(`Fetched ${roomTypes.length} total room types`);
       
       let filteredRoomTypes = roomTypes;
       
       // Smart filtering based on priority: Country -> Region -> Other Regions
       if (selectedCountry) {
+        console.log(`Filtering by country: ${selectedCountry}`);
         // First, show room types from the selected country
         const countryRoomTypes = roomTypes.filter((rt: any) => 
           rt.country === selectedCountry || rt.attributes?.country === selectedCountry
         );
         
+        console.log(`Found ${countryRoomTypes.length} room types for country: ${selectedCountry}`);
+        
         if (countryRoomTypes.length > 0) {
           filteredRoomTypes = countryRoomTypes;
+          console.log('Using country-specific room types');
         } else if (selectedRegion) {
+          console.log(`No country matches, filtering by region: ${selectedRegion}`);
           // If no country matches, show room types from the selected region
           filteredRoomTypes = roomTypes.filter((rt: any) => 
             rt.region === selectedRegion || rt.attributes?.region === selectedRegion
           );
+          console.log(`Found ${filteredRoomTypes.length} room types for region: ${selectedRegion}`);
         }
       } else if (selectedRegion) {
+        console.log(`No country selected, filtering by region: ${selectedRegion}`);
         // If no country selected, show room types from the selected region
         filteredRoomTypes = roomTypes.filter((rt: any) => 
           rt.region === selectedRegion || rt.attributes?.region === selectedRegion
         );
+        console.log(`Found ${filteredRoomTypes.length} room types for region: ${selectedRegion}`);
       }
       
       // If "Show Other Regions" is enabled, show all room types
       if (showOtherRegions) {
+        console.log('Show Other Regions enabled - showing all room types');
         filteredRoomTypes = roomTypes;
       }
 
       // Filter by search term
       if (searchTerm) {
+        console.log(`Filtering by search term: ${searchTerm}`);
         filteredRoomTypes = filteredRoomTypes.filter((rt: any) => 
           rt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           rt.room_type.toLowerCase().includes(searchTerm.toLowerCase())
         );
+        console.log(`Found ${filteredRoomTypes.length} room types after search filter`);
       }
 
-      console.log(`Filtered room types: ${filteredRoomTypes.length} out of ${roomTypes.length} total`);
+      console.log(`Final filtered room types: ${filteredRoomTypes.length} out of ${roomTypes.length} total`);
       console.log('Filter criteria:', { selectedCountry, selectedRegion, showOtherRegions, searchTerm });
       
       setExistingRoomTypes(filteredRoomTypes);
