@@ -61,11 +61,13 @@ const cleanIndianNumber = (value: string): number => {
 };
 
 const normalizeHeader = (header: string): string => {
-  return header?.trim()?.toUpperCase()?.replace(/\s+/g, ' ') || '';
+  if (!header || typeof header !== 'string') return '';
+  return header.trim().toUpperCase().replace(/\s+/g, ' ');
 };
 
 // Convert room type names to canonical format
 const normalizeRoomTypeName = (roomType: string): string => {
+  if (!roomType || typeof roomType !== 'string') return '';
   const name = roomType.trim().toLowerCase();
   
   // Extract variant information (Type 1, Type 2, etc.) before normalization
@@ -620,7 +622,7 @@ export const parseMaterialsListSheet = (
   const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
   console.log(`Sheet range: ${sheet['!ref']}`);
   
-  // Find the header row (row 5 = index 4)
+  // Find the header row (row 5 = index 4) - this is where room types are located
   const headerRowIndex = 4; // Row 5 = index 4
   const headers: string[] = [];
   
@@ -723,6 +725,71 @@ export const parseMaterialsListSheet = (
     throw new Error('No valid room types found in the file. Please check row 5 contains room type names.');
   }
   
+  // Helper function to check if a row is a section header
+  const isSectionHeader = (rowIndex: number): boolean => {
+    const descCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 0 })];
+    if (!descCell || !descCell.v) return false;
+    
+    const desc = String(descCell.v).trim().toLowerCase();
+    if (!desc) return false;
+    
+    // Check for section header patterns
+    const sectionPatterns = [
+      /^[ivxlcdm]+\.\s*/, // Roman numerals like "I.", "II.", "III."
+      /^[a-z]\.\s*/, // Letters like "A.", "B.", "C."
+      /^[0-9]+\.\s*/, // Numbers like "1.", "2.", "3."
+      /installation materials/i,
+      /display devices/i,
+      /accessories/i,
+      /materials/i,
+      /devices/i,
+      /equipment/i,
+      /components/i,
+      /hardware/i,
+      /software/i,
+      /services/i
+    ];
+    
+    return sectionPatterns.some(pattern => pattern.test(desc));
+  };
+  
+  // Helper function to check if a row contains valid component data
+  const hasValidComponentData = (rowIndex: number, colIndex: number): boolean => {
+    const descriptionColIndex = headers.findIndex(h => h.includes('DESCRIPTION') || h.includes('DESC'));
+    const makeColIndex = headers.findIndex(h => h.includes('MAKE') || h.includes('MANUFACTURER'));
+    const modelColIndex = headers.findIndex(h => h.includes('MODEL'));
+    
+    const descCol = descriptionColIndex >= 0 ? descriptionColIndex : 0;
+    const makeCol = makeColIndex >= 0 ? makeColIndex : 1;
+    const modelCol = modelColIndex >= 0 ? modelColIndex : 2;
+    
+    const descriptionCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: descCol })];
+    const makeCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: makeCol })];
+    const modelCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: modelCol })];
+    const qtyCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: colIndex })];
+    
+    if (!descriptionCell || !makeCell || !modelCell) return false;
+    
+    const description = String(descriptionCell.v).trim();
+    const make = String(makeCell.v).trim();
+    const model = String(modelCell.v).trim();
+    const qty = qtyCell ? parseFloat(String(qtyCell.v)) || 0 : 0;
+    
+    // Must have description, make, and model, and quantity > 0
+    return description.length > 0 && make.length > 0 && model.length > 0 && qty > 0;
+  };
+  
+  // Helper function to check if a row is completely blank
+  const isCompletelyBlank = (rowIndex: number): boolean => {
+    for (let C = 0; C <= Math.min(10, range.e.c); ++C) { // Check first 10 columns
+      const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: C })];
+      if (cell && String(cell.v).trim().length > 0) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // Process each room type column
   roomTypeColumns.forEach(({ colIndex, roomType }) => {
     const components: ExcelComponent[] = [];
@@ -730,6 +797,10 @@ export const parseMaterialsListSheet = (
     console.log(`\n=== Processing room type: ${roomType} ===`);
     
     // Process data rows (start from row 11 for component data)
+    let consecutiveBlankRows = 0;
+    const maxConsecutiveBlanks = 15; // Increased to handle more blank rows
+    let lastValidDataRow = 10; // Row 11 = index 10
+    
     for (let R = 10; R <= range.e.r; ++R) { // Row 11 = index 10
       // Find the correct column indices based on headers
       const descriptionColIndex = headers.findIndex(h => h.includes('DESCRIPTION') || h.includes('DESC'));
@@ -745,6 +816,48 @@ export const parseMaterialsListSheet = (
       const makeCell = sheet[XLSX.utils.encode_cell({ r: R, c: makeCol })];
       const modelCell = sheet[XLSX.utils.encode_cell({ r: R, c: modelCol })];
       const qtyCell = sheet[XLSX.utils.encode_cell({ r: R, c: colIndex })]; // Room-specific quantity
+      
+      // Check if this is a section header
+      if (isSectionHeader(R)) {
+        console.log(`Row ${R + 1}: Section header detected: "${descriptionCell ? String(descriptionCell.v) : ''}"`);
+        consecutiveBlankRows = 0; // Reset blank row counter
+        continue; // Skip section headers but continue parsing
+      }
+      
+      // Check if this row is completely blank
+      if (isCompletelyBlank(R)) {
+        consecutiveBlankRows++;
+        console.log(`Row ${R + 1}: Completely blank row (consecutive blanks: ${consecutiveBlankRows})`);
+        
+        // If we've hit too many consecutive blank rows, stop processing
+        if (consecutiveBlankRows >= maxConsecutiveBlanks) {
+          console.log(`Stopping at row ${R + 1} - reached ${maxConsecutiveBlanks} consecutive blank rows`);
+          break;
+        }
+        continue;
+      }
+      
+      // Check if this row has valid component data
+      if (!hasValidComponentData(R, colIndex)) {
+        // This row has some data but not valid component data
+        // Check if it might be a continuation or sub-item
+        const desc = descriptionCell ? String(descriptionCell.v).trim() : '';
+        const make = makeCell ? String(makeCell.v).trim() : '';
+        const model = modelCell ? String(modelCell.v).trim() : '';
+        
+        // If we have some meaningful data, log it but don't count as blank
+        if (desc || make || model) {
+          console.log(`Row ${R + 1}: Partial data - Desc="${desc}", Make="${make}", Model="${model}" (continuing)`);
+          consecutiveBlankRows = 0;
+        } else {
+          consecutiveBlankRows++;
+        }
+        continue;
+      }
+      
+      // Reset blank row counter if we found valid data
+      consecutiveBlankRows = 0;
+      lastValidDataRow = R;
       
       if (!descriptionCell || !makeCell || !modelCell) continue;
       
@@ -836,7 +949,7 @@ export const parseMaterialsListSheet = (
         sub_type: subType // Add sub-type variant
       });
       
-      console.log(`Created room type: ${roomType} (${subType} variant) - Total cost: ${totalCost}`);
+      console.log(`Created room type: ${roomType} (${subType} variant) - Total cost: ${totalCost} (last valid data row: ${lastValidDataRow + 1})`);
     }
   });
   
@@ -1059,9 +1172,67 @@ const parseSingleRoomSheets = (
     
     console.log('Headers found:', headers);
     
-    // Process data rows
+    // Helper function to check if a row is a section header
+    const isSectionHeader = (rowIndex: number): boolean => {
+      const descCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 1 })];
+      if (!descCell || !descCell.v) return false;
+      
+      const desc = String(descCell.v).trim().toLowerCase();
+      if (!desc) return false;
+      
+      // Check for section header patterns
+      const sectionPatterns = [
+        /^[ivxlcdm]+\.\s*/, // Roman numerals like "I.", "II.", "III."
+        /^[a-z]\.\s*/, // Letters like "A.", "B.", "C."
+        /^[0-9]+\.\s*/, // Numbers like "1.", "2.", "3."
+        /installation materials/i,
+        /display devices/i,
+        /accessories/i,
+        /materials/i,
+        /devices/i,
+        /equipment/i,
+        /components/i,
+        /hardware/i,
+        /software/i,
+        /services/i
+      ];
+      
+      return sectionPatterns.some(pattern => pattern.test(desc));
+    };
+    
+    // Helper function to check if a row contains valid component data
+    const hasValidComponentData = (rowIndex: number): boolean => {
+      const descriptionCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 1 })];
+      const makeCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 2 })];
+      const modelCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 3 })];
+      const qtyCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 4 })];
+      
+      if (!descriptionCell || !makeCell || !modelCell) return false;
+      
+      const description = String(descriptionCell.v).trim();
+      const make = String(makeCell.v).trim();
+      const model = String(modelCell.v).trim();
+      const qty = qtyCell ? cleanIndianNumber(String(qtyCell.v)) : 0;
+      
+      // Must have description, make, and model, and quantity > 0
+      return description.length > 0 && make.length > 0 && model.length > 0 && qty > 0;
+    };
+    
+    // Helper function to check if a row is completely blank
+    const isCompletelyBlank = (rowIndex: number): boolean => {
+      for (let C = 0; C <= Math.min(10, range.e.c); ++C) { // Check first 10 columns
+        const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: C })];
+        if (cell && String(cell.v).trim().length > 0) {
+          return false;
+        }
+      }
+      return true;
+    };
+    
+    // Process data rows with improved logic
     let consecutiveBlankRows = 0;
-    const maxConsecutiveBlanks = 10; // Increased to 10 consecutive blank rows for more lenient parsing
+    const maxConsecutiveBlanks = 15; // Increased to handle more blank rows
+    let lastValidDataRow = headerRowIndex;
     
     for (let R = headerRowIndex + 1; R <= range.e.r; ++R) {
       // Updated column indices for Chennai structure:
@@ -1086,15 +1257,17 @@ const parseSingleRoomSheets = (
         }
       }
       
-      // Check if this row is blank (no meaningful data)
-      const isRowBlank = !descriptionCell || !makeCell || !modelCell || 
-                        !String(descriptionCell?.v || '').trim() || 
-                        !String(makeCell?.v || '').trim() || 
-                        !String(modelCell?.v || '').trim();
+      // Check if this is a section header
+      if (isSectionHeader(R)) {
+        console.log(`Row ${R + 1}: Section header detected: "${descriptionCell ? String(descriptionCell.v) : ''}"`);
+        consecutiveBlankRows = 0; // Reset blank row counter
+        continue; // Skip section headers but continue parsing
+      }
       
-      if (isRowBlank) {
+      // Check if this row is completely blank
+      if (isCompletelyBlank(R)) {
         consecutiveBlankRows++;
-        console.log(`Row ${R + 1}: Blank row (consecutive blanks: ${consecutiveBlankRows})`);
+        console.log(`Row ${R + 1}: Completely blank row (consecutive blanks: ${consecutiveBlankRows})`);
         
         // If we've hit too many consecutive blank rows, stop processing
         if (consecutiveBlankRows >= maxConsecutiveBlanks) {
@@ -1104,8 +1277,27 @@ const parseSingleRoomSheets = (
         continue;
       }
       
-      // Reset blank row counter if we found data
+      // Check if this row has valid component data
+      if (!hasValidComponentData(R)) {
+        // This row has some data but not valid component data
+        // Check if it might be a continuation or sub-item
+        const desc = descriptionCell ? String(descriptionCell.v).trim() : '';
+        const make = makeCell ? String(makeCell.v).trim() : '';
+        const model = modelCell ? String(modelCell.v).trim() : '';
+        
+        // If we have some meaningful data, log it but don't count as blank
+        if (desc || make || model) {
+          console.log(`Row ${R + 1}: Partial data - Desc="${desc}", Make="${make}", Model="${model}" (continuing)`);
+          consecutiveBlankRows = 0;
+        } else {
+          consecutiveBlankRows++;
+        }
+        continue;
+      }
+      
+      // Reset blank row counter if we found valid data
       consecutiveBlankRows = 0;
+      lastValidDataRow = R;
       
       const description = String(descriptionCell.v).trim();
       const make = String(makeCell.v).trim();
@@ -1200,7 +1392,7 @@ const parseSingleRoomSheets = (
       });
     }
     
-    console.log(`Found ${components.length} components in sheet ${sheetName}`);
+    console.log(`Found ${components.length} components in sheet ${sheetName} (last valid data row: ${lastValidDataRow + 1})`);
     
     if (components.length > 0) {
       const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
@@ -1239,19 +1431,31 @@ export const parseExcelFile = async (
   currency: string
 ): Promise<ExcelParseResult> => {
   return new Promise((resolve, reject) => {
+    // Validate file input
+    if (!file || !(file instanceof File)) {
+      reject(new Error('Invalid file input: file must be a valid File object'));
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        if (!e.target?.result) {
+          reject(new Error('Failed to read file: no result from FileReader'));
+          return;
+        }
+
+        const data = new Uint8Array(e.target.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
 
         console.log('Excel file sheets:', workbook.SheetNames);
         
         const hasMultipleSheets = workbook.SheetNames.length > 1;
-        const hasAVSheet = workbook.SheetNames.some(name =>
-          name.toLowerCase().includes('av') ||
-          name.toLowerCase().includes('boq')
-        );
+        const hasAVSheet = workbook.SheetNames.some(name => {
+          if (!name || typeof name !== 'string') return false;
+          return name.toLowerCase().includes('av') ||
+                 name.toLowerCase().includes('boq');
+        });
 
         let result: ExcelParseResult;
         
