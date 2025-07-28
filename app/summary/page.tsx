@@ -516,17 +516,15 @@ export default function ProjectMetadataForm() {
       // Group components by room type
       const roomTypeGroups: { [key: string]: any[] } = {};
       
-      sheetData.forEach((row: any, index: number) => {
-        console.log(`Row ${index}:`, row);
-        
-        // Try multiple possible field names for room type
-        const roomType = row.room_type || row['Room Type'] || row.roomType || row['RoomType'] || row.room || row['Room'] || 'Unknown';
-        
-        if (!roomTypeGroups[roomType]) {
-          roomTypeGroups[roomType] = [];
-        }
-        roomTypeGroups[roomType].push(row);
-      });
+      // For BOQ files, the room type is the sheet name itself
+      const roomType = sheetName;
+      console.log(`Using sheet name as room type: ${roomType}`);
+      
+      // Group all rows under this room type
+      if (!roomTypeGroups[roomType]) {
+        roomTypeGroups[roomType] = [];
+      }
+      roomTypeGroups[roomType].push(...sheetData);
       
       console.log('Room type groups:', roomTypeGroups);
       
@@ -538,13 +536,19 @@ export default function ProjectMetadataForm() {
         }
         
         const components = roomTypeGroups[roomTypeName].map((row: any) => {
-          // Try multiple possible field names for each component field
+          // Handle BOQ structure with __EMPTY_ fields
+          const description = row.__EMPTY_1 || row.description || row.Description || row.desc || row.Desc || row.name || row.Name || '';
+          const make = row.__EMPTY_2 || row.make || row.Make || row.manufacturer || row.Manufacturer || '';
+          const model = row.__EMPTY_3 || row.model || row.Model || row.model_number || row.ModelNumber || '';
+          const qty = parseFloat(row.__EMPTY_4 || row.qty || row.Qty || row.quantity || row.Quantity || row.QTY || '1') || 1;
+          const unit_cost = parseFloat(row.__EMPTY_6 || row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0;
+          
           const component = {
-            description: row.description || row.Description || row.desc || row.Desc || row.name || row.Name || '',
-            make: row.make || row.Make || row.manufacturer || row.Manufacturer || '',
-            model: row.model || row.Model || row.model_number || row.ModelNumber || '',
-            qty: parseFloat(row.qty || row.Qty || row.quantity || row.Quantity || row.qty || row.QTY || '1') || 1,
-            unit_cost: parseFloat(row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0,
+            description,
+            make,
+            model,
+            qty,
+            unit_cost,
             room_type: roomTypeName,
             currency: currency,
             region: region,
@@ -554,7 +558,37 @@ export default function ProjectMetadataForm() {
           
           console.log('Created component:', component);
           return component;
-        }).filter(comp => comp.description && comp.unit_cost > 0); // Only include valid components
+        }).filter(comp => {
+          // Skip header rows, empty descriptions, and rows without costs
+          const isValidComponent = comp.description && 
+                                  comp.unit_cost > 0 && 
+                                  comp.description.trim() !== '' &&
+                                  !comp.description.toLowerCase().includes('s.no') &&
+                                  !comp.description.toLowerCase().includes('description') &&
+                                  !comp.description.toLowerCase().includes('make') &&
+                                  !comp.description.toLowerCase().includes('model') &&
+                                  !comp.description.toLowerCase().includes('qty') &&
+                                  !comp.description.toLowerCase().includes('unit price') &&
+                                  !comp.description.toLowerCase().includes('extn. price') &&
+                                  !comp.description.toLowerCase().includes('total investment') &&
+                                  !comp.description.toLowerCase().includes('plus gst') &&
+                                  !comp.description.toLowerCase().includes('bcg - chennai') &&
+                                  !comp.description.toLowerCase().includes('dated') &&
+                                  !comp.description.toLowerCase().includes('configuration for') &&
+                                  !comp.description.toLowerCase().includes('room dimension') &&
+                                  !comp.description.toLowerCase().includes('installation materials') &&
+                                  !comp.description.toLowerCase().includes('display devices') &&
+                                  !comp.description.toLowerCase().includes('video conferencing') &&
+                                  !comp.description.toLowerCase().includes('architectural connectivity') &&
+                                  !comp.description.toLowerCase().includes('room scheduling') &&
+                                  !comp.description.toLowerCase().includes('installation charges') &&
+                                  !comp.description.toLowerCase().includes('optional') &&
+                                  !comp.description.toLowerCase().includes('client scope') &&
+                                  !comp.description.toLowerCase().includes('zoom room license') &&
+                                  !comp.description.toLowerCase().includes('to be provided by client');
+          
+          return isValidComponent;
+        });
         
         if (components.length > 0) {
           const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
@@ -568,8 +602,10 @@ export default function ProjectMetadataForm() {
             sub_type: 'Standard'
           };
           
-          console.log('Created room type:', roomType);
+          console.log(`Created room type "${roomTypeName}" with ${components.length} components:`, roomType);
           roomTypes.push(roomType);
+        } else {
+          console.log(`No valid components found for room type "${roomTypeName}"`);
         }
       });
     });
