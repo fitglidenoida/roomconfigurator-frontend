@@ -206,20 +206,65 @@ export default function RoomConfigurator() {
             
             console.log('Processing mapped rooms:', mappedRooms.length);
             
-            // Create room configurations from mapped rooms
+            // Create room configurations from mapped rooms with actual costs
             const roomConfigurations: RoomConfig[] = mappedRooms.map((mapping: any) => {
               const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
               const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
               const roomCount = srmRoom ? srmRoom.count : 1;
               
+              // Calculate cost per room type
+              let costPerRoom = 0;
+              
+              // Try to get cost from bill of materials if available
+              if (billOfMaterials) {
+                const parsedBillOfMaterials = JSON.parse(billOfMaterials);
+                console.log('Bill of materials structure:', parsedBillOfMaterials);
+                
+                const roomComponents = parsedBillOfMaterials.filter((item: any) => 
+                  item.room_type === roomName || 
+                  item.room_type === mapping.selected_room_type?.name ||
+                  item.room_type === mapping.new_room_name
+                );
+                
+                console.log(`Looking for room "${roomName}" in bill of materials:`, {
+                  roomName,
+                  selectedRoomType: mapping.selected_room_type?.name,
+                  newRoomName: mapping.new_room_name,
+                  foundComponents: roomComponents
+                });
+                
+                costPerRoom = roomComponents.reduce((sum: number, comp: any) => {
+                  return sum + (comp.unit_cost * comp.quantity_per_room);
+                }, 0);
+                
+                console.log(`Room "${roomName}" - Found ${roomComponents.length} components, cost per room: ${costPerRoom}`);
+              }
+              
+              // If no cost found in bill of materials, use a default calculation
+              if (costPerRoom === 0) {
+                // For SRM flow, we might not have detailed component costs
+                // Use a rough estimate based on room type
+                if (roomName.toLowerCase().includes('meeting') || roomName.toLowerCase().includes('conference')) {
+                  costPerRoom = 50000; // $50k for meeting rooms
+                } else if (roomName.toLowerCase().includes('office') || roomName.toLowerCase().includes('workstation')) {
+                  costPerRoom = 15000; // $15k for individual spaces
+                } else {
+                  costPerRoom = 30000; // $30k default
+                }
+                console.log(`Room "${roomName}" - Using default cost per room: ${costPerRoom}`);
+              }
+              
+              const subtotal = costPerRoom * roomCount;
+              
               return {
                 room_type: roomName,
-                total_cost: 0, // Will be calculated when components are selected
+                total_cost: costPerRoom,
                 qty: roomCount,
-                subtotal: 0
+                subtotal: subtotal
               };
             });
             
+            console.log('Created room configurations with costs:', roomConfigurations);
             setRoomConfigs(roomConfigurations);
           }
         } else {
@@ -239,9 +284,18 @@ export default function RoomConfigurator() {
   // Update cost summary when room configurations change
   useEffect(() => {
     if (roomConfigs.length > 0) {
+      console.log('Configured rooms loaded, calculating project costs...');
       updateCostSummary(roomConfigs);
     }
   }, [roomConfigs, labourCost, networkCost, miscellaneous, inflation, approvedCapex]);
+
+  // Additional useEffect to trigger cost calculation when room configs are first set
+  useEffect(() => {
+    if (roomConfigs.length > 0 && hardwareCost === 0) {
+      console.log('Initial room configs loaded, triggering cost calculation...');
+      updateCostSummary(roomConfigs);
+    }
+  }, [roomConfigs, hardwareCost]);
 
   const handleQtyChange = (index: number, value: string) => {
     const newQty = parseInt(value) || 0;
@@ -309,8 +363,15 @@ export default function RoomConfigurator() {
   };
 
   const updateCostSummary = (configs: RoomConfig[]) => {
+    console.log('updateCostSummary called with configs:', configs);
+    
     // Calculate total room cost from configurations
-    const totalRoomCost = configs.reduce((sum, config) => sum + config.subtotal, 0);
+    const totalRoomCost = configs.reduce((sum, config) => {
+      console.log(`Room "${config.room_type}": cost=${config.total_cost}, qty=${config.qty}, subtotal=${config.subtotal}`);
+      return sum + config.subtotal;
+    }, 0);
+    
+    console.log('Calculated total room cost:', totalRoomCost);
     
     // Update hardware cost
     setHardwareCost(totalRoomCost);
