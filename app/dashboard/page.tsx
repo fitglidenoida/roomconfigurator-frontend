@@ -173,67 +173,23 @@ export default function PMDashboard() {
               totalProjectCost
             });
             
-            // Cost breakdown by component type - use actual project data
-            if (parsedBillOfMaterials.length > 0) {
-              console.log('Calculating cost breakdown from bill of materials:', parsedBillOfMaterials.length, 'items');
-              costBreakdown = parsedBillOfMaterials.reduce((acc: any[], component: any) => {
-                const type = component.component_type || component.category || 'AV Equipment';
-                const existing = acc.find((item: any) => item.type === type);
-                if (existing) {
-                  existing.cost += component.unit_cost * component.quantity_per_room;
-                  existing.count += 1;
-                } else {
-                  acc.push({
-                    type,
-                    cost: component.unit_cost * component.quantity_per_room,
-                    count: 1
-                  });
-                }
-                return acc;
-              }, [] as any[]);
-            } else {
-              // Fallback: calculate from room configurations if no bill of materials
-              console.log('No bill of materials, calculating cost breakdown from room configurations');
-              if (parsedRoomMappings.length > 0 && parsedSrmData.length > 0) {
-                const mappedRooms = parsedRoomMappings.filter((mapping: any) => 
-                  mapping.status === 'mapped' || mapping.status === 'new_room'
-                );
-                
-                // Group by room type and calculate costs
-                const roomTypeCosts = new Map();
-                
-                mappedRooms.forEach((mapping: any) => {
-                  const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
-                  const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
-                  const roomCount = srmRoom ? srmRoom.count : 1;
-                  
-                  // Calculate cost per room type
-                  let costPerRoom = 0;
-                  if (roomName.toLowerCase().includes('meeting') || roomName.toLowerCase().includes('conference')) {
-                    costPerRoom = 50000;
-                  } else if (roomName.toLowerCase().includes('office') || roomName.toLowerCase().includes('workstation')) {
-                    costPerRoom = 15000;
-                  } else {
-                    costPerRoom = 30000;
-                  }
-                  
-                  const totalCost = costPerRoom * roomCount;
-                  
-                  if (roomTypeCosts.has(roomName)) {
-                    roomTypeCosts.set(roomName, roomTypeCosts.get(roomName) + totalCost);
-                  } else {
-                    roomTypeCosts.set(roomName, totalCost);
-                  }
-                });
-                
-                costBreakdown = Array.from(roomTypeCosts.entries()).map(([roomType, cost]) => ({
-                  type: roomType,
-                  cost: cost as number,
+            // Cost breakdown by component type - show categorization of all AV components
+            costBreakdown = avComponents.reduce((acc, component) => {
+              const type = component.component_type || 'Uncategorized';
+              const existing = acc.find((item: any) => item.type === type);
+              if (existing) {
+                existing.cost += component.unit_cost;
+                existing.count += 1;
+              } else {
+                acc.push({
+                  type,
+                  cost: component.unit_cost,
                   count: 1
-                }));
+                });
               }
-            }
-            
+              return acc;
+            }, [] as any[]);
+
             console.log('Final cost breakdown:', costBreakdown);
 
             // Regional comparison
@@ -316,6 +272,23 @@ export default function PMDashboard() {
         } else {
           acc.push({
             region,
+            cost: component.unit_cost,
+            count: 1
+          });
+        }
+        return acc;
+      }, [] as any[]);
+
+      // Cost breakdown by component type - show categorization of all AV components
+      costBreakdown = avComponents.reduce((acc, component) => {
+        const type = component.component_type || 'Uncategorized';
+        const existing = acc.find((item: any) => item.type === type);
+        if (existing) {
+          existing.cost += component.unit_cost;
+          existing.count += 1;
+        } else {
+          acc.push({
+            type,
             cost: component.unit_cost,
             count: 1
           });
