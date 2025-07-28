@@ -1229,100 +1229,16 @@ const parseSingleRoomSheets = (
     
     const components: ExcelComponent[] = [];
     
-    // Find header row by looking for 'Description' column
-    let headerRowIndex = 0;
-    for (let R = 0; R <= Math.min(20, range.e.r); ++R) { // Increased search range to 20 rows
-      // Look for 'Description' in column B (index 1) since column A is usually S.NO
-      const cell = sheet[XLSX.utils.encode_cell({ r: R, c: 1 })];
-      if (cell && String(cell.v).toLowerCase().includes('description')) {
-        headerRowIndex = R;
-        break;
-      }
-    }
-    
-    console.log('Found header row at index:', headerRowIndex);
-    
-    // Extract headers
-    const headers: string[] = [];
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cell = sheet[XLSX.utils.encode_cell({ r: headerRowIndex, c: C })];
-      const rawHeader = cell ? String(cell.v) : '';
-      const normalized = normalizeHeader(rawHeader);
-      headers.push(headerMap[normalized] || normalized);
-    }
-    
-    console.log('Headers found:', headers);
-    
-    // Helper function to check if a row is a section header
-    const isSectionHeader = (rowIndex: number): boolean => {
-      const descCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 1 })];
-      if (!descCell || !descCell.v) return false;
-      
-      const desc = String(descCell.v).trim().toLowerCase();
-      if (!desc) return false;
-      
-      // Check for section header patterns
-      const sectionPatterns = [
-        /^[ivxlcdm]+\.\s*/, // Roman numerals like "I.", "II.", "III."
-        /^[a-z]\.\s*/, // Letters like "A.", "B.", "C."
-        /^[0-9]+\.\s*/, // Numbers like "1.", "2.", "3."
-        /installation materials/i,
-        /display devices/i,
-        /accessories/i,
-        /materials/i,
-        /devices/i,
-        /equipment/i,
-        /components/i,
-        /hardware/i,
-        /software/i,
-        /services/i
-      ];
-      
-      return sectionPatterns.some(pattern => pattern.test(desc));
-    };
-    
-    // Helper function to check if a row contains valid component data
-    const hasValidComponentData = (rowIndex: number): boolean => {
-      const descriptionCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 1 })];
-      const makeCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 2 })];
-      const modelCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 3 })];
-      const qtyCell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: 4 })];
-      
-      if (!descriptionCell || !makeCell || !modelCell) return false;
-      
-      const description = String(descriptionCell.v).trim();
-      const make = String(makeCell.v).trim();
-      const model = String(modelCell.v).trim();
-      const qty = qtyCell ? cleanIndianNumber(String(qtyCell.v)) : 0;
-      
-      // Must have description, make, and model, and quantity > 0
-      return description.length > 0 && make.length > 0 && model.length > 0 && qty > 0;
-    };
-    
-    // Helper function to check if a row is completely blank
-    const isCompletelyBlank = (rowIndex: number): boolean => {
-      for (let C = 0; C <= Math.min(10, range.e.c); ++C) { // Check first 10 columns
-        const cell = sheet[XLSX.utils.encode_cell({ r: rowIndex, c: C })];
-        if (cell && String(cell.v).trim().length > 0) {
-          return false;
-        }
-      }
-      return true;
-    };
-    
-    // Process data rows with improved logic
+    // Process data rows with simplified logic - read every line from row 8 onwards
+    const headerRowIndex = 7; // Row 8 = index 7
     let consecutiveBlankRows = 0;
-    const maxConsecutiveBlanks = 50; // Increased significantly to handle more blank rows
+    const maxConsecutiveBlanks = 15;
     let lastValidDataRow = headerRowIndex;
     
+    console.log(`Starting to read from row ${headerRowIndex + 1} (header row)`);
+    
     for (let R = headerRowIndex + 1; R <= range.e.r; ++R) {
-      // Updated column indices for Chennai structure:
-      // Column A (0): S.NO
-      // Column B (1): DESCRIPTION  
-      // Column C (2): MAKE
-      // Column D (3): MODEL
-      // Column E (4): QTY
-      // Column F/G/H: PRICE columns
+      // Read every line - don't skip anything initially
       const descriptionCell = sheet[XLSX.utils.encode_cell({ r: R, c: 1 })]; // Column B
       const makeCell = sheet[XLSX.utils.encode_cell({ r: R, c: 2 })]; // Column C
       const modelCell = sheet[XLSX.utils.encode_cell({ r: R, c: 3 })]; // Column D
@@ -1338,19 +1254,20 @@ const parseSingleRoomSheets = (
         }
       }
       
-      // Check if this is a section header
-      if (isSectionHeader(R)) {
-        console.log(`Row ${R + 1}: Section header detected: "${descriptionCell ? String(descriptionCell.v) : ''}"`);
-        consecutiveBlankRows = 0; // Reset blank row counter
-        continue; // Skip section headers but continue parsing
+      // Check if this row is completely blank
+      let isBlank = true;
+      for (let C = 0; C <= Math.min(5, range.e.c); ++C) {
+        const cell = sheet[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell && String(cell.v).trim().length > 0) {
+          isBlank = false;
+          break;
+        }
       }
       
-      // Check if this row is completely blank
-      if (isCompletelyBlank(R)) {
+      if (isBlank) {
         consecutiveBlankRows++;
-        console.log(`Row ${R + 1}: Completely blank row (consecutive blanks: ${consecutiveBlankRows})`);
+        console.log(`Row ${R + 1}: Blank row (consecutive blanks: ${consecutiveBlankRows})`);
         
-        // If we've hit too many consecutive blank rows, stop processing
         if (consecutiveBlankRows >= maxConsecutiveBlanks) {
           console.log(`Stopping at row ${R + 1} - reached ${maxConsecutiveBlanks} consecutive blank rows`);
           break;
@@ -1358,105 +1275,65 @@ const parseSingleRoomSheets = (
         continue;
       }
       
-      // Check if this row has valid component data
-      if (!hasValidComponentData(R)) {
-        // This row has some data but not valid component data
-        // Check if it might be a continuation or sub-item
-        const desc = descriptionCell ? String(descriptionCell.v).trim() : '';
-        const make = makeCell ? String(makeCell.v).trim() : '';
-        const model = modelCell ? String(modelCell.v).trim() : '';
-        
-        // If we have some meaningful data, log it but don't count as blank
-        if (desc || make || model) {
-          console.log(`Row ${R + 1}: Partial data - Desc="${desc}", Make="${make}", Model="${model}" (continuing)`);
-          consecutiveBlankRows = 0;
-        } else {
-          consecutiveBlankRows++;
-        }
-        continue;
-      }
-      
-      // Reset blank row counter if we found valid data
+      // Reset blank row counter if we found any data
       consecutiveBlankRows = 0;
       lastValidDataRow = R;
       
-      const description = String(descriptionCell.v).trim();
-      const make = String(makeCell.v).trim();
-      const model = String(modelCell.v).trim();
+      // Get the data from this row
+      const description = descriptionCell ? String(descriptionCell.v).trim() : '';
+      const make = makeCell ? String(makeCell.v).trim() : '';
+      const model = modelCell ? String(modelCell.v).trim() : '';
       const qty = qtyCell ? cleanIndianNumber(String(qtyCell.v)) : 0;
       const unitCost = unitCostCell ? cleanIndianNumber(String(unitCostCell.v)) : 0;
       
-      console.log(`Processing row ${R + 1}: Description="${description}", Make="${make}", Model="${model}", Qty=${qty}, UnitCost=${unitCost}`);
+      console.log(`Row ${R + 1}: Desc="${description}", Make="${make}", Model="${model}", Qty=${qty}, UnitCost=${unitCost}`);
       
-      if (!description || !make || !model || qty === 0 || unitCost === 0) continue;
+      // Skip section headers (all caps, bold text, etc.)
+      if (description && description.toUpperCase() === description && 
+          (description.includes('MATERIALS') || description.includes('DEVICES') || 
+           description.includes('ACCESSORIES') || description.includes('EQUIPMENT'))) {
+        console.log(`Row ${R + 1}: Skipping section header: "${description}"`);
+        continue;
+      }
       
-      // Check if this is a labour or miscellaneous cost item (embedded in component data)
+      // Skip if we don't have the minimum required data
+      if (!description || !make || !model || qty === 0 || unitCost === 0) {
+        console.log(`Row ${R + 1}: Skipping - missing required data`);
+        continue;
+      }
+      
+      // Check if this is a labour or miscellaneous cost item
       const descLower = description.toLowerCase();
       const isLabourItem = descLower.includes('project management') || descLower.includes('training') ||
                           descLower.includes('documentation') || descLower.includes('painting charges') ||
                           descLower.includes('painting cost') || descLower.includes('programming cost') ||
                           descLower.includes('installation') || descLower.includes('commissioning') ||
-                          descLower.includes('testing') || descLower.includes('lump sum');
+                          descLower.includes('testing') || descLower.includes('lump sum') ||
+                          descLower.includes('conceptualization') || descLower.includes('design engineering');
       
       const isMiscItem = descLower.includes('miscellaneous hardware') || descLower.includes('freight') ||
                         descLower.includes('delivery') || descLower.includes('insurance') ||
                         descLower.includes('airmag') || descLower.includes('aircharge') ||
                         descLower.includes('connectors') || descLower.includes('av cabling') ||
-                        descLower.includes('termination block');
+                        descLower.includes('termination block') || descLower.includes('installation accessories');
       
       if (isLabourItem) {
         const totalComponentCost = qty * unitCost;
         labourCost += totalComponentCost;
-        console.log(`✓ Found embedded LABOUR cost: "${description}" = ${totalComponentCost}`);
-        continue; // Skip adding to components array
+        console.log(`✓ Found LABOUR cost: "${description}" = ${totalComponentCost}`);
+        continue;
       }
       
       if (isMiscItem) {
         const totalComponentCost = qty * unitCost;
         miscellaneousCost += totalComponentCost;
-        console.log(`✓ Found embedded MISCELLANEOUS cost: "${description}" = ${totalComponentCost}`);
-        continue; // Skip adding to components array
-      }
-      
-      // Skip labour and miscellaneous items that appear at the bottom of the sheet
-      const isBottomLabourItem = descLower.includes('labour cost') || descLower.includes('labor cost') || 
-                                descLower.includes('installation cost') || descLower.includes('commissioning cost') ||
-                                descLower.includes('programming cost') || descLower.includes('training cost') ||
-                                descLower.includes('project management') || descLower.includes('training') ||
-                                descLower.includes('documentation') || descLower.includes('painting charges') ||
-                                descLower.includes('painting cost') || descLower.includes('programming');
-      
-      const isBottomMiscItem = descLower.includes('miscellaneous cost') || descLower.includes('misc cost') ||
-                              descLower.includes('miscellaneous hardware') || descLower.includes('accessories') || 
-                              descLower.includes('materials') || descLower.includes('delivery') ||
-                              descLower.includes('freight') || descLower.includes('insurance') ||
-                              descLower.includes('packing') || descLower.includes('airmag') ||
-                              descLower.includes('aircharge') || descLower.includes('lumpsum');
-      
-      if (isBottomLabourItem || isBottomMiscItem) {
-        console.log(`Skipping bottom cost item: "${description}" (already processed)`);
+        console.log(`✓ Found MISCELLANEOUS cost: "${description}" = ${totalComponentCost}`);
         continue;
       }
       
-      // Categorize the component
-      const costCategory = categorizeCostItem(description);
-      const totalComponentCost = qty * unitCost;
+      // This is a valid AV component - add it
+      console.log(`✓ Adding AV component: "${description}" (${make} ${model}) - Qty: ${qty}, Cost: ${unitCost}`);
       
-      console.log(`Row ${R + 1} categorization: "${description}" → ${costCategory} (${totalComponentCost})`);
-      
-      if (costCategory === 'labour') {
-        labourCost += totalComponentCost;
-        console.log(`✓ Added to LABOUR: "${description}" = ${totalComponentCost}`);
-        continue; // Skip adding to components array
-      } else if (costCategory === 'miscellaneous') {
-        miscellaneousCost += totalComponentCost;
-        console.log(`✓ Added to MISCELLANEOUS: "${description}" = ${totalComponentCost}`);
-        continue; // Skip adding to components array
-      }
-      
-      console.log(`✓ Added to HARDWARE: "${description}" = ${totalComponentCost}`);
-      
-      // Only add hardware components to the components array
       components.push({
         description,
         make,
