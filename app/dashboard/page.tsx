@@ -229,42 +229,6 @@ export default function PMDashboard() {
               percentage: approvedBudget > 0 ? ((totalProjectCost / approvedBudget) * 100) : 0
             };
 
-            // Cost breakdown by component type - show categorization of all AV components
-            costBreakdown = avComponents.reduce((acc, component) => {
-              const type = component.component_type || 'Uncategorized';
-              const existing = acc.find((item: any) => item.type === type);
-              if (existing) {
-                existing.cost += component.unit_cost;
-                existing.count += 1;
-              } else {
-                acc.push({
-                  type,
-                  cost: component.unit_cost,
-                  count: 1
-                });
-              }
-              return acc;
-            }, [] as any[]);
-
-            console.log('Final cost breakdown:', costBreakdown);
-
-            // Regional comparison
-            regionalComparison = avComponents.reduce((acc, component) => {
-              const region = component.region || 'Unknown';
-              const existing = acc.find((item: any) => item.region === region);
-              if (existing) {
-                existing.cost += component.unit_cost;
-                existing.count += 1;
-              } else {
-                acc.push({
-                  region,
-                  cost: component.unit_cost,
-                  count: 1
-                });
-              }
-              return acc;
-            }, [] as any[]);
-
             // Generate cost optimization suggestions based on real data
             const costOptimization = generateCostOptimizationSuggestions(avComponents, roomLevelCosts, totalProjectCost);
 
@@ -284,6 +248,47 @@ export default function PMDashboard() {
         }
       }
       
+      // Cost breakdown by component type - show categorization of all AV components (ALWAYS run)
+      costBreakdown = avComponents.reduce((acc, component) => {
+        const type = component.component_type || 'Uncategorized';
+        const existing = acc.find((item: any) => item.type === type);
+        if (existing) {
+          existing.cost += component.unit_cost;
+          existing.count += 1;
+        } else {
+          acc.push({
+            type,
+            cost: component.unit_cost,
+            count: 1
+          });
+        }
+        return acc;
+      }, [] as any[]);
+
+      console.log('AV Components categorization:', {
+        totalComponents: avComponents.length,
+        categorized: costBreakdown.filter(item => item.type !== 'Uncategorized').reduce((sum, item) => sum + item.count, 0),
+        uncategorized: costBreakdown.find(item => item.type === 'Uncategorized')?.count || 0,
+        breakdown: costBreakdown
+      });
+      
+      // Regional comparison (ALWAYS run)
+      regionalComparison = avComponents.reduce((acc, component) => {
+        const region = component.region || 'Unknown';
+        const existing = acc.find((item: any) => item.region === region);
+        if (existing) {
+          existing.cost += component.unit_cost;
+          existing.count += 1;
+        } else {
+          acc.push({
+            region,
+            cost: component.unit_cost,
+            count: 1
+          });
+        }
+        return acc;
+      }, [] as any[]);
+
       // Fallback to database calculation if no sessionStorage data
       if (totalProjectCost === 0) {
         totalProjectCost = roomConfigs.reduce((sum, config) => {
@@ -308,40 +313,6 @@ export default function PMDashboard() {
            }, [] as any[]);
       }
 
-      // Regional comparison
-      regionalComparison = avComponents.reduce((acc, component) => {
-        const region = component.region || 'Unknown';
-        const existing = acc.find((item: any) => item.region === region);
-        if (existing) {
-          existing.cost += component.unit_cost;
-          existing.count += 1;
-        } else {
-          acc.push({
-            region,
-            cost: component.unit_cost,
-            count: 1
-          });
-        }
-        return acc;
-      }, [] as any[]);
-
-      // Cost breakdown by component type - show categorization of all AV components
-      costBreakdown = avComponents.reduce((acc, component) => {
-        const type = component.component_type || 'Uncategorized';
-        const existing = acc.find((item: any) => item.type === type);
-        if (existing) {
-          existing.cost += component.unit_cost;
-          existing.count += 1;
-        } else {
-          acc.push({
-            type,
-            cost: component.unit_cost,
-            count: 1
-          });
-        }
-        return acc;
-      }, [] as any[]);
-
       // Update budget status with current total project cost if not already set
       if (budgetStatus.approved > 0) {
         budgetStatus = {
@@ -355,6 +326,7 @@ export default function PMDashboard() {
       // Generate cost optimization suggestions based on real data
       const costOptimization = generateCostOptimizationSuggestions(avComponents, roomLevelCosts, totalProjectCost);
 
+      // Final dashboard data update with all calculations
       setDashboardData({
         totalProjectCost,
         roomLevelCosts,
