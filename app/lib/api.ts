@@ -34,6 +34,11 @@ apiClient.interceptors.response.use(
   (error) => {
     console.error('API Response Error:', error);
     
+    // Check for CORS errors specifically
+    if (error.message && error.message.includes('CORS')) {
+      throw new Error('CORS error: Please check backend configuration. Contact administrator.');
+    }
+    
     // Provide user-friendly error messages
     if (error.code === 'ECONNABORTED') {
       throw new Error('Request timed out. Please check your connection and try again.');

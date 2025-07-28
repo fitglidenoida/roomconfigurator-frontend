@@ -103,6 +103,9 @@ export default function ProjectMetadataForm() {
   // New state for room configuration workflow
   const [parseResult, setParseResult] = useState<ExcelParseResult | null>(null);
   const [fileType, setFileType] = useState<'SRM' | 'BOQ' | null>(null);
+  const [detectedFileType, setDetectedFileType] = useState<'SRM' | 'BOQ' | null>(null);
+  const [fileContent, setFileContent] = useState<any>(null);
+  const [showFileTypeConfirmation, setShowFileTypeConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [projectCreated, setProjectCreated] = useState(false);
@@ -203,107 +206,95 @@ export default function ProjectMetadataForm() {
 
   // Simple SRM parser that extracts room types without validation
   const parseSRMFile = async (
-    file: File,
+    fileContent: any,
     region: string,
     country: string,
     currency: string
   ): Promise<ExcelParseResult> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+      try {
+        // Process the file content directly
+        const roomTypes: RoomTypeData[] = [];
+        const invalidEntries: any[] = [];
+        
+        // Process each sheet in the file content
+        Object.keys(fileContent).forEach(sheetName => {
+          console.log(`Processing sheet: ${sheetName}`);
+          const sheetData = fileContent[sheetName];
+          if (!Array.isArray(sheetData)) return;
           
-          const roomTypes: RoomTypeData[] = [];
-          const invalidEntries: any[] = [];
+          console.log(`Sheet data rows: ${sheetData.length}`);
           
-          // Process each sheet in the workbook
-          workbook.SheetNames.forEach(sheetName => {
-            console.log(`Processing sheet: ${sheetName}`);
-            const sheet = workbook.Sheets[sheetName];
-            if (!sheet) return;
+          // Look for room type and count columns
+          console.log(`\n=== Processing rows in ${sheetName} ===`);
+          sheetData.forEach((row: any, rowIndex: number) => {
+            // Debug: Show what we're reading
+            const roomTypeValue = row.room_type || row.room_name || row['Room Type'] || row['Room Name'] || '';
+            const countValue = row.count || row.quantity || row.Count || row.Quantity || 0;
+            console.log(`Row ${rowIndex + 1}: room_type="${roomTypeValue}", count="${countValue}"`);
             
-            const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
-            console.log(`Sheet range: ${sheet['!ref']}, rows: ${range.e.r + 1}, cols: ${range.e.c + 1}`);
-            
-            // Look for room type and count columns
-            // Column B (second column) = Room type headers, Column C (third column) = Room counts
-            console.log(`\n=== Processing rows in ${sheetName} ===`);
-            for (let row = 0; row <= range.e.r; row++) {
-              const roomTypeCell = sheet[XLSX.utils.encode_cell({ r: row, c: 1 })]; // Column B (second column)
-              const countCell = sheet[XLSX.utils.encode_cell({ r: row, c: 2 })]; // Column C (third column)
+            if (roomTypeValue && countValue) {
+              const roomTypeName = String(roomTypeValue).trim();
+              const count = parseFloat(String(countValue)) || 0;
               
-              // Debug: Show what we're reading
-              const roomTypeValue = roomTypeCell ? String(roomTypeCell.v).trim() : '';
-              const countValue = countCell ? String(countCell.v).trim() : '';
-              console.log(`Row ${row + 1}: Column B="${roomTypeValue}", Column C="${countValue}"`);
-              
-              if (roomTypeCell && countCell) {
-                const roomTypeName = String(roomTypeCell.v).trim();
-                const count = parseFloat(String(countCell.v)) || 0;
-                
-                // Skip empty rows
-                if (!roomTypeName) {
-                  continue;
-                }
-                
-                // Skip header row (contains "room type" or similar)
-                if (roomTypeName.toLowerCase().includes('room type') || 
-                    roomTypeName.toLowerCase().includes('space type') ||
-                    roomTypeName.toLowerCase().includes('type') && roomTypeName.toLowerCase().includes('count')) {
-                  console.log(`Skipping header row: "${roomTypeName}"`);
-                  continue;
-                }
-                
-                // Skip if count is 0 or invalid
-                if (count <= 0) {
-                  console.log(`Skipping zero count for: "${roomTypeName}"`);
-                  continue;
-                }
-                
-                // Normalize room type name (convert "Single Offices" to "Partner Cabins")
-                let normalizedRoomType = roomTypeName;
-                if (roomTypeName.toLowerCase().includes('single office') || roomTypeName.toLowerCase().includes('single offices')) {
-                  normalizedRoomType = 'Partner Cabins';
-                }
-                
-                // Create a simple room type entry without components
-                roomTypes.push({
-                  room_type: normalizedRoomType,
-                  components: [], // Empty components array for SRM
-                  total_cost: 0, // Will be calculated later during mapping
-                  pax_count: 0,
-                  category: 'SRM Room Type',
-                  labour_cost: 0,
-                  miscellaneous_cost: 0,
-                  sub_type: 'Standard',
-                  count: count // Store the count from SRM
-                });
-                
-                console.log(`Found SRM room type: ${roomTypeName} -> ${normalizedRoomType} (count: ${count})`);
+              // Skip empty rows
+              if (!roomTypeName) {
+                return;
               }
+              
+              // Skip header row (contains "room type" or similar)
+              if (roomTypeName.toLowerCase().includes('room type') || 
+                  roomTypeName.toLowerCase().includes('space type') ||
+                  roomTypeName.toLowerCase().includes('type') && roomTypeName.toLowerCase().includes('count')) {
+                console.log(`Skipping header row: "${roomTypeName}"`);
+                return;
+              }
+              
+              // Skip if count is 0 or invalid
+              if (count <= 0) {
+                console.log(`Skipping zero count for: "${roomTypeName}"`);
+                return;
+              }
+              
+              // Normalize room type name (convert "Single Offices" to "Partner Cabins")
+              let normalizedRoomType = roomTypeName;
+              if (roomTypeName.toLowerCase().includes('single office') || roomTypeName.toLowerCase().includes('single offices')) {
+                normalizedRoomType = 'Partner Cabins';
+              }
+              
+              // Create a simple room type entry without components
+              roomTypes.push({
+                room_type: normalizedRoomType,
+                components: [], // Empty components array for SRM
+                total_cost: 0, // Will be calculated later during mapping
+                pax_count: 0,
+                category: 'SRM Room Type',
+                labour_cost: 0,
+                miscellaneous_cost: 0,
+                sub_type: 'Standard',
+                count: count // Store the count from SRM
+              });
+              
+              console.log(`Found SRM room type: ${roomTypeName} -> ${normalizedRoomType} (count: ${count})`);
             }
-            
-            console.log(`Total room types found in sheet ${sheetName}: ${roomTypes.length}`);
           });
           
-          const result: ExcelParseResult = {
-            roomTypes,
-            invalidEntries,
-            labourCost: 0,
-            miscellaneousCost: 0,
-            sourceFile: file.name
-          };
-          
-          resolve(result);
-        } catch (error) {
-          console.error('SRM parsing error:', error);
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error('Failed to read SRM file'));
-      reader.readAsArrayBuffer(file);
+          console.log(`Total room types found in sheet ${sheetName}: ${roomTypes.length}`);
+        });
+        
+        const result: ExcelParseResult = {
+          roomTypes,
+          invalidEntries,
+          labourCost: 0,
+          miscellaneousCost: 0,
+          sourceFile: 'SRM File'
+        };
+        
+        resolve(result);
+      } catch (error) {
+        console.error('SRM parsing error:', error);
+        reject(error);
+      }
     });
   };
 
@@ -351,81 +342,204 @@ export default function ProjectMetadataForm() {
             fileContent[sheetName] = XLSX.utils.sheet_to_json(worksheet);
           });
           
-          // Detect file type
+          // Store file content and detected type for confirmation
+          setFileContent(fileContent);
           const detectedType = detectFileType(file.name, fileContent);
-          setFileType(detectedType);
+          setDetectedFileType(detectedType);
+          setShowFileTypeConfirmation(true);
+          setLoading(false);
           
-          // Process file based on type
-          if (detectedType === 'SRM') {
-            // Process as SRM - extract room requirements without validation
-            const result = await parseSRMFile(file, region, country, currency);
-            setParseResult(result);
-            
-            if (result.roomTypes.length === 0) {
-              setError('No room types found in the SRM file.');
-            } else {
-              // Store SRM data in sessionStorage for room mapping page
-              const srmData = result.roomTypes.map((room, index) => ({
-                id: `srm-${index}`,
-                room_name: room.room_type,
-                space_type: room.room_type.toLowerCase().includes('partner') || 
-                           room.room_type.toLowerCase().includes('office') || 
-                           room.room_type.toLowerCase().includes('workstation') ||
-                           room.room_type.toLowerCase().includes('cabin') ||
-                           room.room_type.toLowerCase().includes('desk') ||
-                           room.room_type.toLowerCase().includes('individual') ? 'i-space' : 'we-space',
-                count: room.count || 1, // Use actual count from SRM
-                category: room.category || 'SRM Room Type',
-                description: `From SRM: ${room.room_type} (Count: ${room.count || 1})`
-              }));
-              
-              sessionStorage.setItem('srmData', JSON.stringify(srmData));
-              
-              // Store project details for room mapping page
-              const projectData = {
-                region,
-                country,
-                currency,
-                projectName,
-                capex,
-                networkCost,
-                labourCost,
-                miscCost,
-                inflation
-              };
-              sessionStorage.setItem('projectData', JSON.stringify(projectData));
-              
-              setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
-            }
-          } else {
-            // Process as BOQ - extract detailed components
-            const result = await parseExcelFile(file, region, country, currency);
-            setParseResult(result);
-            
-            if (result.roomTypes.length === 0) {
-              setError('No valid components found in the BOQ file.');
-            } else {
-              setSuccess(`BOQ file processed! Found ${result.roomTypes.length} components. Ready to create room types.`);
-            }
-          }
-        } catch (err) {
-          setError('Failed to process file. Please check the file format.');
-          console.error('Process error:', err);
-        } finally {
+        } catch (error) {
+          console.error('Error reading file:', error);
+          setError('Failed to read the file. Please try again.');
           setLoading(false);
         }
       };
       
-      reader.onerror = () => {
-        setError('Error reading file. Please try again.');
-        setLoading(false);
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setError('Failed to process the file. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleFileTypeConfirmation = async (confirmedType: 'SRM' | 'BOQ') => {
+    setFileType(confirmedType);
+    setShowFileTypeConfirmation(false);
+    setLoading(true);
+    
+    try {
+      if (confirmedType === 'SRM') {
+        // Process as SRM - extract room requirements
+        const result = await parseSRMFile(fileContent, region, country, currency);
+        setParseResult(result);
+        
+        if (result.roomTypes.length === 0) {
+          setError('No room types found in the SRM file.');
+        } else {
+          // Store SRM data in sessionStorage for room mapping page
+          const srmData = result.roomTypes.map((room, index) => ({
+            id: `srm-${index}`,
+            room_name: room.room_type,
+            space_type: room.room_type.toLowerCase().includes('partner') || 
+                       room.room_type.toLowerCase().includes('office') || 
+                       room.room_type.toLowerCase().includes('workstation') ||
+                       room.room_type.toLowerCase().includes('cabin') ||
+                       room.room_type.toLowerCase().includes('desk') ||
+                       room.room_type.toLowerCase().includes('individual') ? 'i-space' : 'we-space',
+            count: room.count || 1,
+            category: room.category || 'SRM Room Type',
+            description: `From SRM: ${room.room_type} (Count: ${room.count || 1})`
+          }));
+          
+          sessionStorage.setItem('srmData', JSON.stringify(srmData));
+          
+          // Store project details for room mapping page
+          const projectData = {
+            region,
+            country,
+            currency,
+            projectName,
+            capex,
+            networkCost,
+            labourCost,
+            miscCost,
+            inflation
+          };
+          sessionStorage.setItem('projectData', JSON.stringify(projectData));
+          
+          setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
+        }
+      } else {
+        // Process as BOQ - extract detailed components and create room instances
+        const result = await parseExcelFileContent(fileContent, region, country, currency);
+        setParseResult(result);
+        
+        if (result.roomTypes.length === 0) {
+          setError('No valid components found in the BOQ file.');
+        } else {
+          // Create room instances and AV BOQ from the BOQ data
+          await createRoomInstancesAndAVBOQ(result, region, country, currency);
+          setSuccess(`BOQ file processed! Found ${result.roomTypes.length} room types. Created room instances and AV BOQ.`);
+        }
+      }
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setError('Failed to process the file. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseExcelFileContent = async (fileContent: any, region: string, country: string, currency: string): Promise<ExcelParseResult> => {
+    // This is a simplified version that works with file content instead of File object
+    // For now, we'll create a basic structure - you can enhance this based on your needs
+    const roomTypes: RoomTypeData[] = [];
+    const invalidEntries: any[] = [];
+    
+    // Process each sheet in the file content
+    Object.keys(fileContent).forEach(sheetName => {
+      const sheetData = fileContent[sheetName];
+      if (!Array.isArray(sheetData)) return;
+      
+      // Group components by room type
+      const roomTypeGroups: { [key: string]: any[] } = {};
+      
+      sheetData.forEach((row: any) => {
+        const roomType = row.room_type || row['Room Type'] || 'Unknown';
+        if (!roomTypeGroups[roomType]) {
+          roomTypeGroups[roomType] = [];
+        }
+        roomTypeGroups[roomType].push(row);
+      });
+      
+      // Create room types from grouped data
+      Object.keys(roomTypeGroups).forEach(roomTypeName => {
+        const components = roomTypeGroups[roomTypeName].map((row: any) => ({
+          description: row.description || row.Description || '',
+          make: row.make || row.Make || '',
+          model: row.model || row.Model || '',
+          qty: parseFloat(row.qty || row.Qty || row.quantity || row.Quantity || '1') || 1,
+          unit_cost: parseFloat(row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || '0') || 0,
+          room_type: roomTypeName,
+          currency: currency,
+          region: region,
+          country: country,
+          source_file: 'BOQ File'
+        }));
+        
+        const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
+        
+        roomTypes.push({
+          room_type: roomTypeName,
+          components,
+          total_cost: totalCost,
+          pax_count: 0,
+          category: 'BOQ Room Type',
+          sub_type: 'Standard'
+        });
+      });
+    });
+    
+    return {
+      roomTypes,
+      invalidEntries,
+      labourCost: 0,
+      miscellaneousCost: 0,
+      sourceFile: 'BOQ File'
+    };
+  };
+
+  const createRoomInstancesAndAVBOQ = async (parseResult: ExcelParseResult, region: string, country: string, currency: string) => {
+    try {
+      // Create room instances for each room type
+      const roomInstances = [];
+      for (const roomType of parseResult.roomTypes) {
+        const roomInstance = {
+          room_type: roomType.room_type,
+          sub_type: roomType.sub_type || 'Standard',
+          region,
+          country,
+          currency,
+          total_cost: roomType.total_cost,
+          components: roomType.components.map(comp => ({
+            description: comp.description,
+            make: comp.make,
+            model: comp.model,
+            qty: comp.qty,
+            unit_cost: comp.unit_cost,
+            currency: comp.currency
+          }))
+        };
+        roomInstances.push(roomInstance);
+      }
+      
+      // Store room instances in sessionStorage
+      sessionStorage.setItem('roomInstances', JSON.stringify(roomInstances));
+      
+      // Create AV BOQ from the components
+      const avBOQ = {
+        project_name: projectName,
+        region,
+        country,
+        currency,
+        total_cost: parseResult.roomTypes.reduce((sum, room) => sum + room.total_cost, 0),
+        room_types: parseResult.roomTypes.map(room => ({
+          room_type: room.room_type,
+          sub_type: room.sub_type || 'Standard',
+          components: room.components,
+          total_cost: room.total_cost
+        }))
       };
       
-      reader.readAsArrayBuffer(file);
-    } catch (err) {
-      setError('Failed to read file. Please try again.');
-      console.error('File read error:', err);
-      setLoading(false);
+      // Store AV BOQ in sessionStorage
+      sessionStorage.setItem('avBOQ', JSON.stringify(avBOQ));
+      
+      console.log('Created room instances and AV BOQ:', { roomInstances, avBOQ });
+    } catch (error) {
+      console.error('Error creating room instances and AV BOQ:', error);
+      throw error;
     }
   };
 
@@ -1315,6 +1429,87 @@ export default function ProjectMetadataForm() {
               </div>
             </div>
             
+            {/* File Type Confirmation Modal */}
+            {showFileTypeConfirmation && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-semibold text-gray-800">Confirm File Type</h3>
+                      <button
+                        onClick={() => setShowFileTypeConfirmation(false)}
+                        className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <p className="text-gray-600 mb-4">
+                        We detected this file as a <strong>{detectedFileType}</strong> file. Please confirm the file type to proceed:
+                      </p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          detectedFileType === 'SRM' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                        }`}>
+                          <div className="flex items-center mb-2">
+                            <input
+                              type="radio"
+                              name="fileType"
+                              value="SRM"
+                              checked={detectedFileType === 'SRM'}
+                              onChange={() => setDetectedFileType('SRM')}
+                              className="mr-2"
+                            />
+                            <h4 className="font-semibold text-gray-800">SRM (Space Requirement Matrix)</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            Contains room types and quantities. Used for room mapping and configuration.
+                          </p>
+                        </div>
+                        
+                        <div className={`border-2 rounded-lg p-4 cursor-pointer transition-colors ${
+                          detectedFileType === 'BOQ' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                        }`}>
+                          <div className="flex items-center mb-2">
+                            <input
+                              type="radio"
+                              name="fileType"
+                              value="BOQ"
+                              checked={detectedFileType === 'BOQ'}
+                              onChange={() => setDetectedFileType('BOQ')}
+                              className="mr-2"
+                            />
+                            <h4 className="font-semibold text-gray-800">BOQ (Bill of Quantities)</h4>
+                          </div>
+                          <p className="text-sm text-gray-600">
+                            Contains detailed component specifications. Used to create room types and instances.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={() => setShowFileTypeConfirmation(false)}
+                        className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleFileTypeConfirmation(detectedFileType!)}
+                        disabled={loading}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        {loading ? 'Processing...' : 'Confirm & Process'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* File Processing Status */}
             {parseResult && (
               <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
