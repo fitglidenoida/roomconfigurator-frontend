@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { apiService, fetchAllPages } from '../lib/api';
+import { fetchAllPages } from '../lib/api';
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 interface DashboardData {
   totalProjectCost: number;
@@ -28,8 +28,8 @@ export default function PMDashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedProject, setSelectedProject] = useState<string>('');
-  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProject] = useState<string>('');
+  const [projects] = useState<any[]>([]);
   const [showRoomCostModal, setShowRoomCostModal] = useState(false);
   const [showCostBreakdownModal, setShowCostBreakdownModal] = useState(false);
   const pathname = usePathname();
@@ -43,15 +43,13 @@ export default function PMDashboard() {
       setLoading(true);
       
       // Fetch all data
-      const [roomConfigs, avComponents, projectsData, roomInstancesData, billOfMaterialsData] = await Promise.all([
+      const [roomConfigs, avComponents, projectsData] = await Promise.all([
         fetchAllPages('/room-configurations'),
         fetchAllPages('/av-components'),
-        fetchAllPages('/projects'),
-        fetchAllPages('/room-instances'),
-        fetchAllPages('/av-bill-of-materials')
+        fetchAllPages('/projects')
       ]);
 
-      setProjects(projectsData);
+      // setProjects(projectsData);
 
       // Calculate dashboard metrics - use actual project data from sessionStorage
       let totalProjectCost = 0;
@@ -106,7 +104,7 @@ export default function PMDashboard() {
                      if (mapping && (mapping.status === 'mapped' || mapping.status === 'new_room')) {
                        // Use SRM room name for consistency - check all possible field names
                        const roomType = srmRoom.room_name || srmRoom.name || srmRoom.room_type || 'Unknown Room';
-                       const roomCount = srmRoom.count || 1;
+                       // const roomCount = srmRoom.count || 1;
                        
                        // Calculate cost per room from bill of materials
                        const roomComponents = parsedBillOfMaterials.filter((item: any) => {
@@ -266,27 +264,27 @@ export default function PMDashboard() {
   };
 
   // Currency conversion function (same as room-configuration page)
-  const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string) => {
-    // Simple conversion rates (in real app, these would come from an API)
-    const rates: { [key: string]: number } = {
-      'GBP': 1,
-      'USD': 1.27,
-      'EUR': 1.17,
-      'INR': 115,
-      'AED': 4.67,
-      'SAR': 4.77
-    };
-    
-    if (fromCurrency === toCurrency) return amount;
-    
-    // Convert to GBP first (base currency)
-    const gbpAmount = fromCurrency === 'GBP' ? amount : amount / rates[fromCurrency];
-    
-    // Convert from GBP to target currency
-    const convertedAmount = toCurrency === 'GBP' ? gbpAmount : gbpAmount * rates[toCurrency];
-    
-    return convertedAmount;
-  };
+  // const convertCurrency = (amount: number, fromCurrency: string, toCurrency: string) => {
+  //   // Simple conversion rates (in real app, these would come from an API)
+  //   const rates: { [key: string]: number } = {
+  //     'GBP': 1,
+  //     'USD': 1.27,
+  //     'EUR': 1.17,
+  //     'INR': 115,
+  //     'AED': 4.67,
+  //     'SAR': 4.77
+  //   };
+  //   
+  //   if (fromCurrency === toCurrency) return amount;
+  //   
+  //   // Convert to GBP first (base currency)
+  //   const gbpAmount = fromCurrency === 'GBP' ? amount : amount / rates[fromCurrency];
+  //   
+  //   // Convert from GBP to target currency
+  //   const convertedAmount = toCurrency === 'GBP' ? gbpAmount : gbpAmount * rates[toCurrency];
+  //   
+  //   return convertedAmount;
+  // };
 
   // Format currency with project currency and conversion
   const formatProjectCurrency = (amount: number) => {
@@ -697,7 +695,7 @@ export default function PMDashboard() {
                       if (projectData && roomMappings && srmData) {
                         try {
                           const parsedProjectData = JSON.parse(projectData);
-                          const parsedRoomMappings = JSON.parse(roomMappings);
+                          // const parsedRoomMappings = JSON.parse(roomMappings);
                           const parsedSrmData = JSON.parse(srmData);
                           
                                                      // Count total rooms from SRM data (user's state) - not just mapped ones

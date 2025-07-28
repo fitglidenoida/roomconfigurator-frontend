@@ -3,31 +3,31 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { apiService } from './lib/api';
+// import { apiService } from './lib/api';
 import { mlService } from './lib/mlService';
 
-type AvMaterialItem = {
-  id: number;
-  documentId: string;
-  room_type: string;
-  description?: string;
-  make?: string;
-  model?: string;
-  unit_cost: number;
-  qty: number;
-};
+// type AvMaterialItem = {
+//   id: number;
+//   documentId: string;
+//   room_type: string;
+//   description?: string;
+//   make?: string;
+//   model?: string;
+//   unit_cost: number;
+//   qty: number;
+// };
 
-type RoomConfigurationItem = {
-  id: number;
-  documentId: string;
-  room_type: string;
-  sub_type: string;
-  description: string;
-  make: string;
-  model: string;
-  qty: number;
-  unit_price: number;
-};
+// type RoomConfigurationItem = {
+//   id: number;
+//   documentId: string;
+//   room_type: string;
+//   sub_type: string;
+//   description: string;
+//   make: string;
+//   model: string;
+//   qty: number;
+//   unit_price: number;
+// };
 
 type RoomConfig = {
   room_type: string;

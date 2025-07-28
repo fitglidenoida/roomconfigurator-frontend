@@ -145,7 +145,7 @@ export default function SpaceRequirementMatrix({
   selectedSubType,
   onRequirementSelect
 }: SpaceRequirementMatrixProps) {
-  const [requirements, setRequirements] = useState<SpaceRequirement[]>(defaultSpaceRequirements);
+  const [requirements] = useState<SpaceRequirement[]>(defaultSpaceRequirements);
   const [filteredRequirements, setFilteredRequirements] = useState<SpaceRequirement[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRequirement, setSelectedRequirement] = useState<SpaceRequirement | null>(null);

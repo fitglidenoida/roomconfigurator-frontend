@@ -3,7 +3,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
-import { apiService, fetchAllPages } from '../lib/api';
+import Link from 'next/link';
+import { fetchAllPages } from '../lib/api';
 
 interface DefaultRoomConfig {
   id: number;
@@ -88,9 +89,9 @@ export default function RoomCostPage() {
       {/* Navigation Tabs */}
       <div className="mb-8">
         <div className="flex space-x-4 border-b border-gray-200">
-          <a href="/" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
-            Room Configurator
-          </a>
+                  <Link href="/" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
+          Room Configurator
+        </Link>
           <a href="/summary" className="px-4 py-2 text-sm font-medium rounded-t-md text-gray-600 hover:text-blue-700">
             Room Cost
           </a>

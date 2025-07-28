@@ -26,7 +26,7 @@ const ComponentSuggestionPopup: React.FC<ComponentSuggestionPopupProps> = ({
   onAcceptSuggestion,
   onRejectSuggestion,
 }) => {
-  const [selectedSuggestion, setSelectedSuggestion] = useState<ComponentSuggestion | null>(null);
+  const [selectedSuggestion] = useState<ComponentSuggestion | null>(null);
 
   if (!isOpen) return null;
 

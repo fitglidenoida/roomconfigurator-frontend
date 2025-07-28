@@ -49,13 +49,13 @@ class MLService {
   // Find similar components based on features
   async findSimilarComponents(
     targetComponent: any,
-    roomType: string,
-    budget: number
+    _roomType: string,
+    _budget: number
   ): Promise<MLComponentSuggestion[]> {
-    const suggestions: MLComponentSuggestion[] = [];
+    const _suggestions: MLComponentSuggestion[] = [];
     
     // Simple similarity calculation based on component features
-    const targetFeatures = this.extractFeatures(targetComponent);
+    const _targetFeatures = this.extractFeatures(targetComponent);
     
     // Mock similar components for demo
     const mockSuggestions = [
