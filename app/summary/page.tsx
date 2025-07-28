@@ -428,19 +428,67 @@ export default function ProjectMetadataForm() {
           
           setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
         }
-      } else {
-        // Process as BOQ - extract detailed components and create room instances
-        const result = await parseExcelFileContent(fileContent, region, country, currency);
-        setParseResult(result);
-        
-        if (result.roomTypes.length === 0) {
-          setError('No valid components found in the BOQ file.');
-        } else {
-          // Create room instances and AV BOQ from the BOQ data
-          await createRoomInstancesAndAVBOQ(result, region, country, currency);
-          setSuccess(`BOQ file processed! Found ${result.roomTypes.length} room types. Created room instances and AV BOQ.`);
+              } else {
+          // Process as BOQ - extract detailed components and create room instances
+          const result = await parseExcelFileContent(fileContent, region, country, currency);
+          setParseResult(result);
+          
+          if (result.roomTypes.length === 0) {
+            setError('No valid components found in the BOQ file.');
+          } else {
+            // Create room instances and AV BOQ from the BOQ data
+            await createRoomInstancesAndAVBOQ(result, region, country, currency);
+            
+            // Store project details for consistency with SRM flow
+            const projectData = {
+              region,
+              country,
+              currency,
+              projectName,
+              capex,
+              networkCost,
+              labourCost,
+              miscCost,
+              inflation
+            };
+            sessionStorage.setItem('projectData', JSON.stringify(projectData));
+            
+            // Store the parse result for room-types page
+            sessionStorage.setItem('excelParseResult', JSON.stringify(result));
+            
+            // Create bill of materials for main configurator
+            const billOfMaterials = result.roomTypes.flatMap(room => room.components);
+            sessionStorage.setItem('billOfMaterials', JSON.stringify(billOfMaterials));
+            
+            // Create final project costs
+            const totalHardwareCost = result.roomTypes.reduce((sum, room) => sum + room.total_cost, 0);
+            const labourCostValue = parseFloat(labourCost) || (totalHardwareCost * (getLabourCostPercentage(region, country) / 100));
+            const inflationValue = parseFloat(inflation) || 0;
+            const networkCostValue = parseFloat(networkCost) || 0;
+            const miscCostValue = parseFloat(miscCost) || 0;
+            
+            const finalProjectCosts = {
+              hardware_cost: totalHardwareCost,
+              labour_cost: labourCostValue,
+              network_cost: networkCostValue,
+              miscellaneous_cost: miscCostValue,
+              inflation_amount: (totalHardwareCost + labourCostValue + networkCostValue + miscCostValue) * (inflationValue / 100),
+              total_project_cost: totalHardwareCost + labourCostValue + networkCostValue + miscCostValue + ((totalHardwareCost + labourCostValue + networkCostValue + miscCostValue) * (inflationValue / 100))
+            };
+            sessionStorage.setItem('finalProjectCosts', JSON.stringify(finalProjectCosts));
+            
+            // Debug: Log all stored data
+            console.log('BOQ Flow - All stored data:');
+            console.log('projectData:', projectData);
+            console.log('excelParseResult:', result);
+            console.log('billOfMaterials:', billOfMaterials);
+            console.log('finalProjectCosts:', finalProjectCosts);
+            console.log('roomInstances:', sessionStorage.getItem('roomInstances'));
+            console.log('avBOQ:', sessionStorage.getItem('avBOQ'));
+            
+            setSuccess(`BOQ file processed! Found ${result.roomTypes.length} room types. Created room instances and AV BOQ.`);
+          }
         }
-      }
     } catch (error) {
       console.error('Error processing file:', error);
       setError('Failed to process the file. Please try again.');
@@ -450,54 +498,83 @@ export default function ProjectMetadataForm() {
   };
 
   const parseExcelFileContent = async (fileContent: any, region: string, country: string, currency: string): Promise<ExcelParseResult> => {
-    // This is a simplified version that works with file content instead of File object
-    // For now, we'll create a basic structure - you can enhance this based on your needs
+    console.log('Parsing BOQ file content:', fileContent);
     const roomTypes: RoomTypeData[] = [];
     const invalidEntries: any[] = [];
     
     // Process each sheet in the file content
     Object.keys(fileContent).forEach(sheetName => {
+      console.log(`Processing sheet: ${sheetName}`);
       const sheetData = fileContent[sheetName];
-      if (!Array.isArray(sheetData)) return;
+      if (!Array.isArray(sheetData)) {
+        console.log(`Sheet ${sheetName} is not an array, skipping`);
+        return;
+      }
+      
+      console.log(`Sheet ${sheetName} has ${sheetData.length} rows`);
       
       // Group components by room type
       const roomTypeGroups: { [key: string]: any[] } = {};
       
-      sheetData.forEach((row: any) => {
-        const roomType = row.room_type || row['Room Type'] || 'Unknown';
+      sheetData.forEach((row: any, index: number) => {
+        console.log(`Row ${index}:`, row);
+        
+        // Try multiple possible field names for room type
+        const roomType = row.room_type || row['Room Type'] || row.roomType || row['RoomType'] || row.room || row['Room'] || 'Unknown';
+        
         if (!roomTypeGroups[roomType]) {
           roomTypeGroups[roomType] = [];
         }
         roomTypeGroups[roomType].push(row);
       });
       
+      console.log('Room type groups:', roomTypeGroups);
+      
       // Create room types from grouped data
       Object.keys(roomTypeGroups).forEach(roomTypeName => {
-        const components = roomTypeGroups[roomTypeName].map((row: any) => ({
-          description: row.description || row.Description || '',
-          make: row.make || row.Make || '',
-          model: row.model || row.Model || '',
-          qty: parseFloat(row.qty || row.Qty || row.quantity || row.Quantity || '1') || 1,
-          unit_cost: parseFloat(row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || '0') || 0,
-          room_type: roomTypeName,
-          currency: currency,
-          region: region,
-          country: country,
-          source_file: 'BOQ File'
-        }));
+        if (roomTypeName === 'Unknown') {
+          console.log('Skipping unknown room type');
+          return;
+        }
         
-        const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
+        const components = roomTypeGroups[roomTypeName].map((row: any) => {
+          // Try multiple possible field names for each component field
+          const component = {
+            description: row.description || row.Description || row.desc || row.Desc || row.name || row.Name || '',
+            make: row.make || row.Make || row.manufacturer || row.Manufacturer || '',
+            model: row.model || row.Model || row.model_number || row.ModelNumber || '',
+            qty: parseFloat(row.qty || row.Qty || row.quantity || row.Quantity || row.qty || row.QTY || '1') || 1,
+            unit_cost: parseFloat(row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0,
+            room_type: roomTypeName,
+            currency: currency,
+            region: region,
+            country: country,
+            source_file: 'BOQ File'
+          };
+          
+          console.log('Created component:', component);
+          return component;
+        }).filter(comp => comp.description && comp.unit_cost > 0); // Only include valid components
         
-        roomTypes.push({
-          room_type: roomTypeName,
-          components,
-          total_cost: totalCost,
-          pax_count: 0,
-          category: 'BOQ Room Type',
-          sub_type: 'Standard'
-        });
+        if (components.length > 0) {
+          const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
+          
+          const roomType = {
+            room_type: roomTypeName,
+            components,
+            total_cost: totalCost,
+            pax_count: 0,
+            category: 'BOQ Room Type',
+            sub_type: 'Standard'
+          };
+          
+          console.log('Created room type:', roomType);
+          roomTypes.push(roomType);
+        }
       });
     });
+    
+    console.log('Final room types:', roomTypes);
     
     return {
       roomTypes,
@@ -510,9 +587,13 @@ export default function ProjectMetadataForm() {
 
   const createRoomInstancesAndAVBOQ = async (parseResult: ExcelParseResult, region: string, country: string, currency: string) => {
     try {
+      console.log('Creating room instances and AV BOQ from parseResult:', parseResult);
+      
       // Create room instances for each room type
       const roomInstances = [];
       for (const roomType of parseResult.roomTypes) {
+        console.log('Processing room type:', roomType);
+        
         const roomInstance = {
           room_type: roomType.room_type,
           sub_type: roomType.sub_type || 'Standard',
@@ -530,10 +611,12 @@ export default function ProjectMetadataForm() {
           }))
         };
         roomInstances.push(roomInstance);
+        console.log('Created room instance:', roomInstance);
       }
       
       // Store room instances in sessionStorage
       sessionStorage.setItem('roomInstances', JSON.stringify(roomInstances));
+      console.log('Stored roomInstances in sessionStorage:', roomInstances);
       
       // Create AV BOQ from the components
       const avBOQ = {
@@ -552,8 +635,9 @@ export default function ProjectMetadataForm() {
       
       // Store AV BOQ in sessionStorage
       sessionStorage.setItem('avBOQ', JSON.stringify(avBOQ));
+      console.log('Stored avBOQ in sessionStorage:', avBOQ);
       
-      console.log('Created room instances and AV BOQ:', { roomInstances, avBOQ });
+      console.log('Successfully created room instances and AV BOQ');
     } catch (error) {
       console.error('Error creating room instances and AV BOQ:', error);
       throw error;
