@@ -60,6 +60,8 @@ export default function PMDashboard() {
         variance: 0,
         percentage: 0
       };
+      let costBreakdown: any[] = []; // Initialize at top level
+      let regionalComparison: any[] = []; // Initialize at top level
       
       // Get actual project data from sessionStorage
       if (typeof window !== 'undefined') {
@@ -171,60 +173,109 @@ export default function PMDashboard() {
               totalProjectCost
             });
             
-            // Calculate room level costs from SRM data for consistency
-                 const roomCostMap = new Map();
-                 
-                 // Use SRM data as the source of truth for room types
-                 if (parsedSrmData.length > 0) {
-                   console.log('Processing SRM data for room level costs:', parsedSrmData);
-                   parsedSrmData.forEach((srmRoom: any) => {
-                     // Find corresponding mapping for this SRM room
-                     const mapping = parsedRoomMappings.find((m: any) => m.srm_room_id === srmRoom.id);
-                     
-                     if (mapping && (mapping.status === 'mapped' || mapping.status === 'new_room')) {
-                       // Use SRM room name for consistency - check all possible field names
-                       const roomType = srmRoom.room_name || srmRoom.name || srmRoom.room_type || 'Unknown Room';
-                       // const roomCount = srmRoom.count || 1;
-                       
-                       // Calculate cost per room from bill of materials
-                       const roomComponents = parsedBillOfMaterials.filter((item: any) => {
-                         const mappingRoomName = mapping.selected_room_type?.name || mapping.new_room_name;
-                         return item.room_type === mappingRoomName;
-                       });
-                       
-                       const costPerRoom = roomComponents.reduce((sum: number, comp: any) => {
-                         return sum + (comp.unit_cost * comp.quantity_per_room);
-                       }, 0);
-                       
-                       // Store cost per room (not total cost for all rooms)
-                       const costPerRoomValue = costPerRoom;
-                       
-                       if (roomCostMap.has(roomType)) {
-                         // If room type already exists, use the higher cost per room (for comparison)
-                         const existingCost = roomCostMap.get(roomType);
-                         roomCostMap.set(roomType, Math.max(existingCost, costPerRoomValue));
-                       } else {
-                         roomCostMap.set(roomType, costPerRoomValue);
-                       }
-                     }
-                   });
-                 }
-                 
-                 roomLevelCosts = Array.from(roomCostMap.entries()).map(([roomType, cost]) => ({
-                   room_type: roomType,
-                   cost: cost as number,
-                   count: 1
-                 }));
+            // Cost breakdown by component type - use actual project data
+            if (parsedBillOfMaterials.length > 0) {
+              console.log('Calculating cost breakdown from bill of materials:', parsedBillOfMaterials.length, 'items');
+              costBreakdown = parsedBillOfMaterials.reduce((acc: any[], component: any) => {
+                const type = component.component_type || component.category || 'AV Equipment';
+                const existing = acc.find((item: any) => item.type === type);
+                if (existing) {
+                  existing.cost += component.unit_cost * component.quantity_per_room;
+                  existing.count += 1;
+                } else {
+                  acc.push({
+                    type,
+                    cost: component.unit_cost * component.quantity_per_room,
+                    count: 1
+                  });
+                }
+                return acc;
+              }, [] as any[]);
+            } else {
+              // Fallback: calculate from room configurations if no bill of materials
+              console.log('No bill of materials, calculating cost breakdown from room configurations');
+              if (parsedRoomMappings.length > 0 && parsedSrmData.length > 0) {
+                const mappedRooms = parsedRoomMappings.filter((mapping: any) => 
+                  mapping.status === 'mapped' || mapping.status === 'new_room'
+                );
+                
+                // Group by room type and calculate costs
+                const roomTypeCosts = new Map();
+                
+                mappedRooms.forEach((mapping: any) => {
+                  const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
+                  const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
+                  const roomCount = srmRoom ? srmRoom.count : 1;
+                  
+                  // Calculate cost per room type
+                  let costPerRoom = 0;
+                  if (roomName.toLowerCase().includes('meeting') || roomName.toLowerCase().includes('conference')) {
+                    costPerRoom = 50000;
+                  } else if (roomName.toLowerCase().includes('office') || roomName.toLowerCase().includes('workstation')) {
+                    costPerRoom = 15000;
+                  } else {
+                    costPerRoom = 30000;
+                  }
+                  
+                  const totalCost = costPerRoom * roomCount;
+                  
+                  if (roomTypeCosts.has(roomName)) {
+                    roomTypeCosts.set(roomName, roomTypeCosts.get(roomName) + totalCost);
+                  } else {
+                    roomTypeCosts.set(roomName, totalCost);
+                  }
+                });
+                
+                costBreakdown = Array.from(roomTypeCosts.entries()).map(([roomType, cost]) => ({
+                  type: roomType,
+                  cost: cost as number,
+                  count: 1
+                }));
+              }
+            }
             
-            // Calculate budget status - use raw values without conversion
-            const approvedBudget = parseFloat(parsedProjectData.capex) || 0;
-            budgetStatus = {
-              approved: approvedBudget,
-              actual: totalProjectCost,
-              variance: approvedBudget - totalProjectCost,
-              percentage: approvedBudget > 0 ? ((totalProjectCost / approvedBudget) * 100) : 0
-            };
-            
+            console.log('Final cost breakdown:', costBreakdown);
+
+            // Regional comparison
+            regionalComparison = avComponents.reduce((acc, component) => {
+              const region = component.region || 'Unknown';
+              const existing = acc.find((item: any) => item.region === region);
+              if (existing) {
+                existing.cost += component.unit_cost;
+                existing.count += 1;
+              } else {
+                acc.push({
+                  region,
+                  cost: component.unit_cost,
+                  count: 1
+                });
+              }
+              return acc;
+            }, [] as any[]);
+
+            // Update budget status with current total project cost if not already set
+            if (budgetStatus.approved > 0) {
+              budgetStatus = {
+                ...budgetStatus,
+                actual: totalProjectCost,
+                variance: budgetStatus.approved - totalProjectCost,
+                percentage: budgetStatus.approved > 0 ? ((totalProjectCost / budgetStatus.approved) * 100) : 0
+              };
+            }
+
+            // Generate cost optimization suggestions based on real data
+            const costOptimization = generateCostOptimizationSuggestions(avComponents, roomLevelCosts, totalProjectCost);
+
+            setDashboardData({
+              totalProjectCost,
+              roomLevelCosts,
+              costBreakdown,
+              regionalComparison,
+              budgetStatus,
+              costOptimization,
+              recentProjects: projectsData.slice(0, 5)
+            });
+
           } catch (error) {
             console.warn('Error reading project data from sessionStorage:', error);
           }
@@ -255,25 +306,8 @@ export default function PMDashboard() {
            }, [] as any[]);
       }
 
-      // Cost breakdown by component type
-      const costBreakdown = avComponents.reduce((acc, component) => {
-        const type = component.component_type || 'Uncategorized';
-        const existing = acc.find((item: any) => item.type === type);
-        if (existing) {
-          existing.cost += component.unit_cost;
-          existing.count += 1;
-        } else {
-          acc.push({
-            type,
-            cost: component.unit_cost,
-            count: 1
-          });
-        }
-        return acc;
-      }, [] as any[]);
-
       // Regional comparison
-      const regionalComparison = avComponents.reduce((acc, component) => {
+      regionalComparison = avComponents.reduce((acc, component) => {
         const region = component.region || 'Unknown';
         const existing = acc.find((item: any) => item.region === region);
         if (existing) {
