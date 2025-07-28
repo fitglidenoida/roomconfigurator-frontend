@@ -447,8 +447,8 @@ export default function ProjectMetadataForm() {
               projectName,
               capex,
               networkCost,
-              labourCost,
-              miscCost,
+              labourCost: result.labourCost || labourCost, // Use extracted labour cost if available
+              miscCost: result.miscellaneousCost || miscCost, // Use extracted misc cost if available
               inflation
             };
             sessionStorage.setItem('projectData', JSON.stringify(projectData));
@@ -462,10 +462,22 @@ export default function ProjectMetadataForm() {
             
             // Create final project costs
             const totalHardwareCost = result.roomTypes.reduce((sum, room) => sum + room.total_cost, 0);
-            const labourCostValue = parseFloat(labourCost) || (totalHardwareCost * (getLabourCostPercentage(region, country) / 100));
+            // Use extracted labour and miscellaneous costs from parser, fallback to manual input or calculation
+            const labourCostValue = result.labourCost || parseFloat(labourCost) || (totalHardwareCost * (getLabourCostPercentage(region, country) / 100));
             const inflationValue = parseFloat(inflation) || 0;
             const networkCostValue = parseFloat(networkCost) || 0;
-            const miscCostValue = parseFloat(miscCost) || 0;
+            const miscCostValue = result.miscellaneousCost || parseFloat(miscCost) || 0;
+            
+            // Debug: Log which cost values are being used
+            console.log('Cost extraction debug:', {
+              extractedLabourCost: result.labourCost,
+              manualLabourCost: parseFloat(labourCost),
+              calculatedLabourCost: totalHardwareCost * (getLabourCostPercentage(region, country) / 100),
+              finalLabourCost: labourCostValue,
+              extractedMiscCost: result.miscellaneousCost,
+              manualMiscCost: parseFloat(miscCost),
+              finalMiscCost: miscCostValue
+            });
             
             const finalProjectCosts = {
               hardware_cost: totalHardwareCost,

@@ -264,58 +264,62 @@ export const determineSubType = (roomType: string, totalCost: number, components
   const name = roomType.toLowerCase();
   
   // Analyze component features to determine sophistication level
-  const hasHighEndFeatures = components.some(comp => 
-    comp.description.toLowerCase().includes('4k') ||
-    comp.description.toLowerCase().includes('interactive') ||
-    comp.description.toLowerCase().includes('touch screen') ||
-    comp.description.toLowerCase().includes('ptz') ||
-    comp.description.toLowerCase().includes('beamforming') ||
-    comp.description.toLowerCase().includes('dante') ||
-    comp.description.toLowerCase().includes('q-sys') ||
-    comp.description.toLowerCase().includes('crestron') ||
-    comp.description.toLowerCase().includes('extron') ||
-    comp.description.toLowerCase().includes('biamp') ||
-    comp.description.toLowerCase().includes('tesira')
-  );
+  const hasHighEndFeatures = components.some(comp => {
+    if (!comp.description || typeof comp.description !== 'string') return false;
+    const desc = comp.description.toLowerCase();
+    return desc.includes('4k') ||
+           desc.includes('interactive') ||
+           desc.includes('touch screen') ||
+           desc.includes('ptz') ||
+           desc.includes('beamforming') ||
+           desc.includes('dante') ||
+           desc.includes('q-sys') ||
+           desc.includes('crestron') ||
+           desc.includes('extron') ||
+           desc.includes('biamp') ||
+           desc.includes('tesira');
+  });
   
-  const hasMidRangeFeatures = components.some(comp => 
-    comp.description.toLowerCase().includes('hdmi') ||
-    comp.description.toLowerCase().includes('poly') ||
-    comp.description.toLowerCase().includes('logitech') ||
-    comp.description.toLowerCase().includes('sennheiser') ||
-    comp.description.toLowerCase().includes('qsc') ||
-    comp.description.toLowerCase().includes('lightware')
-  );
+  const hasMidRangeFeatures = components.some(comp => {
+    if (!comp.description || typeof comp.description !== 'string') return false;
+    const desc = comp.description.toLowerCase();
+    return desc.includes('hdmi') ||
+           desc.includes('poly') ||
+           desc.includes('logitech') ||
+           desc.includes('sennheiser') ||
+           desc.includes('qsc') ||
+           desc.includes('lightware');
+  });
   
   // For Partner/MDP Cabin - determine variant based on setup configuration
   if (name.includes('partner/mdp cabin') || name.includes('partner cabin') || name.includes('mdp cabin')) {
-    const hasTV = components.some(comp => 
-      comp.description.toLowerCase().includes('tv') || 
-      comp.description.toLowerCase().includes('display') ||
-      comp.description.toLowerCase().includes('monitor')
-    );
-    const hasMonitor = components.some(comp => 
-      comp.description.toLowerCase().includes('monitor') || 
-      comp.description.toLowerCase().includes('display')
-    );
-    const _hasCodec = components.some(comp => 
-      comp.description.toLowerCase().includes('codec') || 
-      comp.description.toLowerCase().includes('poly studio') ||
-      comp.description.toLowerCase().includes('poly x')
-    );
-    const hasSwitcher = components.some(comp => 
-      comp.description.toLowerCase().includes('switcher') || 
-      comp.description.toLowerCase().includes('switching') ||
-      comp.description.toLowerCase().includes('ucx') ||
-      comp.description.toLowerCase().includes('lightware')
-    );
+    const hasTV = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('tv') || desc.includes('display') || desc.includes('monitor');
+    });
+    const hasMonitor = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('monitor') || desc.includes('display');
+    });
+    const _hasCodec = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('codec') || desc.includes('poly studio') || desc.includes('poly x');
+    });
+    const hasSwitcher = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('switcher') || desc.includes('switching') || desc.includes('ucx') || desc.includes('lightware');
+    });
     
     // Count cameras
-    const cameraCount = components.filter(comp => 
-      comp.description.toLowerCase().includes('camera') ||
-      comp.description.toLowerCase().includes('webcam') ||
-      comp.description.toLowerCase().includes('ptz')
-    ).length;
+    const cameraCount = components.filter(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('camera') || desc.includes('webcam') || desc.includes('ptz');
+    }).length;
     
     // Executive setup: TV + Monitor/Display + 2+ cameras + Switcher (single desk setup)
     if (hasTV && hasMonitor && cameraCount >= 2 && hasSwitcher) {
@@ -335,31 +339,29 @@ export const determineSubType = (roomType: string, totalCost: number, components
   
   // For Meeting Rooms - determine variant based on VC setup
   if (name.includes('pax meeting room') || name.includes('meeting room') || name.includes('4pax') || name.includes('6pax') || name.includes('8pax') || name.includes('10pax')) {
-    const _hasCodec = components.some(comp => 
-      comp.description.toLowerCase().includes('codec') || 
-      comp.description.toLowerCase().includes('poly studio') ||
-      comp.description.toLowerCase().includes('poly x') ||
-      comp.description.toLowerCase().includes('x70') ||
-      comp.description.toLowerCase().includes('e70')
-    );
+    const _hasCodec = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('codec') || desc.includes('poly studio') || desc.includes('poly x') || desc.includes('x70') || desc.includes('e70');
+    });
     
-    const hasVCCamera = components.some(comp => 
-      comp.description.toLowerCase().includes('vc camera') ||
-      comp.description.toLowerCase().includes('video conference camera') ||
-      comp.description.toLowerCase().includes('poly e70')
-    );
+    const hasVCCamera = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('vc camera') || desc.includes('video conference camera') || desc.includes('poly e70');
+    });
     
-    const hasDirectConnection = components.some(comp => 
-      comp.description.toLowerCase().includes('computer') ||
-      comp.description.toLowerCase().includes('pc') ||
-      comp.description.toLowerCase().includes('laptop')
-    );
+    const hasDirectConnection = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('computer') || desc.includes('pc') || desc.includes('laptop');
+    });
     
-    const hasHighEndAudio = components.some(comp => 
-      comp.description.toLowerCase().includes('beamforming') ||
-      comp.description.toLowerCase().includes('dante') ||
-      comp.description.toLowerCase().includes('q-sys')
-    );
+    const hasHighEndAudio = components.some(comp => {
+      if (!comp.description || typeof comp.description !== 'string') return false;
+      const desc = comp.description.toLowerCase();
+      return desc.includes('beamforming') || desc.includes('dante') || desc.includes('q-sys');
+    });
     
     // Codec-based setup (Amsterdam style) - Poly X70, E70 with codec
     if (_hasCodec && !hasDirectConnection) {
@@ -411,6 +413,7 @@ export const determineSubType = (roomType: string, totalCost: number, components
 
 // Categorize room type based on canonical name
 const categorizeRoomType = (roomType: string, _components: ExcelComponent[]): string => {
+  if (!roomType || typeof roomType !== 'string') return 'Unknown';
   const name = roomType.toLowerCase();
   
   // Handle special room types first
@@ -461,6 +464,7 @@ const categorizeRoomType = (roomType: string, _components: ExcelComponent[]): st
 
 // Helper function to categorize cost line items
 export const categorizeCostItem = (description: string): 'labour' | 'miscellaneous' | 'hardware' => {
+  if (!description || typeof description !== 'string') return 'hardware';
   const desc = description.toLowerCase();
   
   // Labour cost keywords
@@ -965,6 +969,7 @@ export const parseMaterialsListSheet = (
   roomTypes.forEach(roomType => {
     const originalCount = roomType.components.length;
     roomType.components = roomType.components.filter(component => {
+      if (!component.description || typeof component.description !== 'string') return true; // Keep components without description
       const desc = component.description.toLowerCase();
       const shouldExclude = nonHardwareKeywords.some(keyword => desc.includes(keyword));
       
@@ -1098,14 +1103,20 @@ const parseSingleRoomSheets = (
   }
   
   workbook.SheetNames.forEach(sheetName => {
-    // Skip summary, index, or other non-room sheets (but we already processed Summary above)
-    if (sheetName.toLowerCase().includes('summary') || 
-        sheetName.toLowerCase().includes('index') ||
-        sheetName.toLowerCase().includes('total') ||
-        sheetName.toLowerCase().includes('overview')) {
-      console.log('Skipping non-room sheet:', sheetName);
-      return;
-    }
+    try {
+      // Skip summary, index, or other non-room sheets (but we already processed Summary above)
+      if (!sheetName || typeof sheetName !== 'string') {
+        console.log('Skipping invalid sheet name:', sheetName);
+        return;
+      }
+      
+      if (sheetName.toLowerCase().includes('summary') || 
+          sheetName.toLowerCase().includes('index') ||
+          sheetName.toLowerCase().includes('total') ||
+          sheetName.toLowerCase().includes('overview')) {
+        console.log('Skipping non-room sheet:', sheetName);
+        return;
+      }
     
     console.log('Processing sheet:', sheetName);
     const sheet = workbook.Sheets[sheetName];
@@ -1409,6 +1420,10 @@ const parseSingleRoomSheets = (
       
       console.log(`Created room type: ${roomType} with ${components.length} components, total cost: ${totalCost}`);
     }
+    } catch (error) {
+      console.error(`Error processing sheet ${sheetName}:`, error);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    }
   });
   
   console.log(`Total room types created from separate sheets: ${roomTypes.length}`);
@@ -1473,6 +1488,7 @@ export const parseExcelFile = async (
         resolve(result);
       } catch (error) {
         console.error('Excel parsing error:', error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
         reject(error);
       }
     };
