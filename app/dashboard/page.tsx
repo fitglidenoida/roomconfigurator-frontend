@@ -257,7 +257,7 @@ export default function PMDashboard() {
       }
       
       // Cost breakdown by component type - show categorization of all AV components (ALWAYS run)
-      console.log('Raw AV Components data sample:', avComponents.slice(0, 5).map(comp => ({
+      console.log('Raw AV Components data sample:', avComponents.slice(0, 5).map((comp: any) => ({
         id: comp.id,
         name: comp.name,
         component_type: comp.component_type,
@@ -265,7 +265,7 @@ export default function PMDashboard() {
         sub_category: comp.sub_category
       })));
       
-      costBreakdown = avComponents.reduce((acc, component) => {
+      costBreakdown = avComponents.reduce((acc: any[], component: any) => {
         // Try multiple fields for categorization
         let type = component.component_type || 
                   component.category || 
@@ -320,7 +320,7 @@ export default function PMDashboard() {
       });
       
       // Regional comparison (ALWAYS run)
-      regionalComparison = avComponents.reduce((acc, component) => {
+      regionalComparison = avComponents.reduce((acc: any[], component: any) => {
         const region = component.region || 'Unknown';
         const existing = acc.find((item: any) => item.region === region);
         if (existing) {
@@ -335,16 +335,16 @@ export default function PMDashboard() {
         }
         return acc;
       }, [] as any[]);
-
+      
       // Fallback to database calculation if no sessionStorage data
       if (totalProjectCost === 0) {
-        totalProjectCost = roomConfigs.reduce((sum, config) => {
+        totalProjectCost = roomConfigs.reduce((sum: number, config: any) => {
           return sum + (config.qty * config.unit_price);
         }, 0);
         console.log('Using fallback database calculation:', totalProjectCost);
         
                    // Fallback room level costs from database
-           roomLevelCosts = roomConfigs.reduce((acc, config) => {
+           roomLevelCosts = roomConfigs.reduce((acc: any[], config: any) => {
              const existing = acc.find((item: any) => item.room_type === config.room_type);
              if (existing) {
                existing.cost += config.qty * config.unit_price;
