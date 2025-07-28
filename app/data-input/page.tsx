@@ -262,12 +262,12 @@ export default function DataInputPage() {
         region,
         country,
         currency,
-        capex_amount: parseFloat(capex) || totalCapex,
+        capex_amount: parseFloat(capex) || 0, // Use manual input, not calculated total
         network_cost: parseFloat(networkCost) || 0,
         labour_cost: parseResult.labourCost > 0 ? parseResult.labourCost : parseFloat(labourCost) || 0,
         inflation: parseFloat(inflation) || 0,
         misc_cost: parseResult.miscellaneousCost > 0 ? parseResult.miscellaneousCost : parseFloat(miscCost) || 0,
-        notes: `Project created from BOQ file. Total project cost: ${totalCapex}`
+        notes: `Project created from BOQ file. Total hardware cost: ${totalHardwareCost}, Labour: ${parseResult.labourCost}, Misc: ${parseResult.miscellaneousCost}`
       };
 
       console.log('Creating project with data:', projectData);

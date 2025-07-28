@@ -115,12 +115,11 @@ function RoomTypeCreationContent() {
     
     setCheckingExisting(true);
     try {
-      // For now, fetch all room types and filter on frontend
-      // This avoids backend schema issues while we're setting up the project relationship
+      // Fetch room types and filter by project
       const existingRoomTypesResponse = await apiService.getRoomTypes();
       const allExisting = existingRoomTypesResponse.data.data || [];
       
-      // Filter by project on frontend (temporary until backend is fully updated)
+      // Filter by project on frontend
       const existing = allExisting.filter((rt: any) => {
         const rtProject = rt.attributes?.project?.data?.id || rt.project?.id;
         return rtProject === projectId;
@@ -377,7 +376,7 @@ function RoomTypeCreationContent() {
         region: region, // Add region field
         country: country, // Add country field
         currency: currency, // Add currency field
-        project: projectId // Link to the project
+        project: projectId // Link to the project (Strapi will handle the relation)
       };
       
       // Room types are now region-based with proper schema fields
@@ -491,7 +490,6 @@ function RoomTypeCreationContent() {
               qty: excelComponent?.qty || 1,
               unit_price: component.unit_cost,
               project: projectId // Link to the project
-              // Note: region, country, currency are inherited from the room type relationship
             };
             
             console.log('Creating room configuration line item with UID:', generatedRoomTypeUID);
