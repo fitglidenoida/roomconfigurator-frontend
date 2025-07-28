@@ -519,61 +519,82 @@ function RoomTypeCreationContent() {
         console.log(`Creating ${roomCount} room instances for ${roomType.room_type}`);
         
         let roomInstancesCreated = 0;
-        let avBoqRecordsCreated = 0;
+        let avBoqLineItemsCreated = 0;
         
-        for (let i = 0; i < roomCount; i++) {
-          try {
-            // Create room instance
-            const roomInstanceData = {
-              actual_cost: roomType.total_cost || 0,
-              date_completed: new Date().toISOString().split('T')[0], // Today's date
-              configuration_used: generatedRoomTypeUID,
-              project: projectId,
-              linked_boq: {
-                room_type: roomType.room_type,
-                components: roomType.components.map(c => ({
-                  description: c.description,
-                  make: c.make,
-                  model: c.model,
-                  qty: c.qty,
-                  unit_cost: c.unit_cost
-                }))
-              }
-            };
-            
-            console.log(`Creating room instance ${i + 1}/${roomCount}:`, roomInstanceData);
-            const roomInstanceResponse = await apiService.createRoomInstance(roomInstanceData);
-            const createdRoomInstance = roomInstanceResponse.data.data;
-            console.log('Created room instance:', createdRoomInstance);
-            
-            // Create AV-BOQ record for this room instance
-            const avBoqData = {
-              country: country,
-              pax: roomType.pax_count || 0,
-              room_qty: 1, // One BOQ per room instance
-              region: region,
-              currency: currency,
-              exchange_rate: 1, // Default exchange rate
-              is_estimate: false, // This is actual data from completed project
-              project: projectId,
-              room_instance: createdRoomInstance.id
-            };
-            
-            console.log(`Creating AV-BOQ record for room instance ${i + 1}:`, avBoqData);
-            const avBoqResponse = await apiService.createAVBOQ(avBoqData);
-            console.log('Created AV-BOQ record:', avBoqResponse.data.data);
-            
-            roomInstancesCreated++;
-            avBoqRecordsCreated++;
-            
-          } catch (error: any) {
-            console.error(`Failed to create room instance ${i + 1}:`, error);
+        // Create one room instance for the room type
+        try {
+          // Create room instance
+          const roomInstanceData = {
+            actual_cost: roomType.total_cost || 0,
+            date_completed: new Date().toISOString().split('T')[0], // Today's date
+            configuration_used: generatedRoomTypeUID,
+            project: projectId,
+            linked_boq: {
+              room_type: roomType.room_type,
+              room_count: roomCount,
+              components: roomType.components.map(c => ({
+                description: c.description,
+                make: c.make,
+                model: c.model,
+                qty: c.qty,
+                unit_cost: c.unit_cost
+              }))
+            }
+          };
+          
+          console.log(`Creating room instance for ${roomType.room_type} (${roomCount} rooms):`, roomInstanceData);
+          const roomInstanceResponse = await apiService.createRoomInstance(roomInstanceData);
+          const createdRoomInstance = roomInstanceResponse.data.data;
+          console.log('Created room instance:', createdRoomInstance);
+          roomInstancesCreated++;
+          
+          // Create AV-BOQ line items for each component × room quantity
+          console.log(`Creating AV-BOQ line items for ${roomType.components.length} components × ${roomCount} rooms`);
+          
+          for (const component of roomType.components) {
+            try {
+              // Calculate total quantity: component qty × number of rooms
+              const totalQty = component.qty * roomCount;
+              const totalCost = totalQty * component.unit_cost;
+              
+              // Create AV-BOQ line item
+              const avBoqData = {
+                country: country,
+                pax: roomType.pax_count || 0,
+                room_qty: roomCount, // Number of rooms this line item applies to
+                make: component.make,
+                model: component.model,
+                desciption: component.description, // Note: schema has typo 'desciption'
+                qty: totalQty, // Total quantity across all rooms
+                unitcost: component.unit_cost,
+                subtotal: totalCost,
+                grandtotal: totalCost, // Same as subtotal for line items
+                region: region,
+                currency: currency,
+                exchange_rate: 1, // Default exchange rate
+                is_estimate: false, // This is actual data from completed project
+                project: projectId,
+                room_instance: createdRoomInstance.id
+              };
+              
+              console.log(`Creating AV-BOQ line item: ${component.description} × ${component.qty} × ${roomCount} rooms = ${totalQty} units, Total: ${totalCost}`);
+              const avBoqResponse = await apiService.createAVBOQ(avBoqData);
+              console.log('Created AV-BOQ line item:', avBoqResponse.data.data);
+              
+              avBoqLineItemsCreated++;
+              
+            } catch (error: any) {
+              console.error(`Failed to create AV-BOQ line item for ${component.description}:`, error);
+            }
           }
+          
+        } catch (error: any) {
+          console.error(`Failed to create room instance for ${roomType.room_type}:`, error);
         }
         
-        console.log(`STEP 4 COMPLETE: Created ${roomInstancesCreated} room instances and ${avBoqRecordsCreated} AV-BOQ records`);
+        console.log(`STEP 4 COMPLETE: Created ${roomInstancesCreated} room instances and ${avBoqLineItemsCreated} AV-BOQ line items`);
         
-        setSuccess(`Successfully created room type: ${roomType.room_type} for region ${region} (${country}) with ${bomLineItemsCreated} BOM line items, ${roomInstancesCreated} room instances, and ${avBoqRecordsCreated} AV-BOQ records. Created: ${createdCount}, Linked: ${linkedCount}, Skipped: ${skippedCount}`);
+        setSuccess(`Successfully created room type: ${roomType.room_type} for region ${region} (${country}) with ${bomLineItemsCreated} BOM line items, ${roomInstancesCreated} room instances, and ${avBoqLineItemsCreated} AV-BOQ line items. Created: ${createdCount}, Linked: ${linkedCount}, Skipped: ${skippedCount}`);
         
         // Remove from parse result
         if (parseResult) {
