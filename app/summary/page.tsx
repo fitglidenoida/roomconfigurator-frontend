@@ -425,6 +425,27 @@ export default function ProjectMetadataForm() {
       sessionStorage.setItem('billOfMaterials', JSON.stringify(parseResult.billOfMaterials));
       sessionStorage.setItem('finalProjectCosts', JSON.stringify(parseResult.finalProjectCosts));
       
+      // Store project details for room mapping page
+      // For SRM: Use manual input or calculated percentages (no extraction)
+      const projectData = {
+        region,
+        country,
+        currency,
+        projectName,
+        capex,
+        networkCost,
+        labourCost, // Use manual input for SRM
+        miscCost,   // Use manual input for SRM
+        inflation
+      };
+      
+      console.log('Storing project data for SRM flow:', projectData);
+      sessionStorage.setItem('projectData', JSON.stringify(projectData));
+      
+      // Verify storage
+      const storedProjectData = sessionStorage.getItem('projectData');
+      console.log('Verification - stored project data:', storedProjectData ? 'Found' : 'Missing');
+      
       // Navigate to room mapping
       router.push('/room-mapping');
       
