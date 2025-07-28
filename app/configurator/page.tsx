@@ -136,23 +136,23 @@ export default function RoomConfigurator() {
           let networkCostValue = 0;
           let miscellaneousCost = 0;
           
-          if (finalProjectCosts) {
-            // BOQ flow - use extracted costs
+          // For SRM flow, prioritize manual input costs over BOQ extracted costs
+          if (projectData) {
+            // SRM flow - use manual input costs (priority for SRM)
+            labourCost = parseFloat(parsedProjectData.labourCost) || 0;
+            networkCostValue = parseFloat(parsedProjectData.networkCost) || 0;
+            miscellaneousCost = parseFloat(parsedProjectData.miscCost) || 0;
+            
+            console.log('Using SRM manual costs (priority):', { labourCost, networkCostValue, miscellaneousCost });
+          } else if (finalProjectCosts) {
+            // BOQ flow - use extracted costs (fallback)
             const parsedFinalProjectCosts = JSON.parse(finalProjectCosts);
             totalRoomCost = parsedFinalProjectCosts.total_room_cost || 0;
             labourCost = parseFloat(parsedFinalProjectCosts.labour_cost) || 0;
             networkCostValue = parseFloat(parsedFinalProjectCosts.network_cost) || 0;
             miscellaneousCost = parseFloat(parsedFinalProjectCosts.miscellaneous_cost) || 0;
             
-            console.log('Using BOQ extracted costs:', { totalRoomCost, labourCost, networkCostValue, miscellaneousCost });
-          } else {
-            // SRM flow - use manual input costs
-            labourCost = parseFloat(parsedProjectData.labourCost) || 0;
-            networkCostValue = parseFloat(parsedProjectData.networkCost) || 0;
-            miscellaneousCost = parseFloat(parsedProjectData.miscCost) || 0;
-            
-            // For SRM, room cost will be calculated from room configurations
-            console.log('Using SRM manual costs:', { labourCost, networkCostValue, miscellaneousCost });
+            console.log('Using BOQ extracted costs (fallback):', { totalRoomCost, labourCost, networkCostValue, miscellaneousCost });
           }
           
           // Set bill of materials if available
