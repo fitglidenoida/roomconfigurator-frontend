@@ -689,6 +689,26 @@ export const parseMaterialsListSheet = (
   miscellaneousCost = miscCosts.reduce((sum, item) => sum + item.cost, 0);
   console.log('Total miscellaneous cost from dedicated rows:', miscellaneousCost);
   
+  // Extract room counts from row 6 for each room type
+  const roomCountRow = 5; // 0-indexed, so row 6 = index 5
+  const roomCounts: { roomType: string; count: number }[] = [];
+  
+  for (let C = 1; C <= range.e.c; ++C) {
+    const roomTypeCell = sheet[XLSX.utils.encode_cell({ r: headerRowIndex, c: C })];
+    const roomCountCell = sheet[XLSX.utils.encode_cell({ r: roomCountRow, c: C })];
+    
+    if (roomTypeCell && roomCountCell) {
+      const roomType = String(roomTypeCell.v).trim();
+      const count = parseInt(String(roomCountCell.v)) || 0;
+      
+      // Skip if it's not a room type column
+      if (roomType && !['DESCRIPTION', 'MAKE', 'MODEL', 'QTY', 'QUANTITY', 'UNIT_COST', 'UNIT PRICE', 'TOTAL', 'ITEM_NO', 'MANUFACTURER'].includes(normalizeHeader(roomType))) {
+        roomCounts.push({ roomType, count });
+        console.log(`Found room count for ${roomType}: ${count} (from row 6)`);
+      }
+    }
+  }
+  
   // Find room type columns (columns that contain room names, not component data)
   const roomTypeColumns: { colIndex: number; roomType: string }[] = [];
   
@@ -942,6 +962,10 @@ export const parseMaterialsListSheet = (
       const paxCount = paxMatch ? parseInt(paxMatch[1]) : 0;
       const subType = determineSubType(roomType, totalCost, components);
       
+      // Find room count from row 6 data
+      const roomCountData = roomCounts.find(rc => rc.roomType === roomType);
+      const roomCount = roomCountData ? roomCountData.count : 1; // Default to 1 if not found
+      
       roomTypes.push({
         room_type: roomType,
         components,
@@ -950,10 +974,11 @@ export const parseMaterialsListSheet = (
         category: categorizeRoomType(roomType, components),
         labour_cost: labourCost, // Use extracted labour cost
         miscellaneous_cost: miscellaneousCost, // Use extracted miscellaneous cost
-        sub_type: subType // Add sub-type variant
+        sub_type: subType, // Add sub-type variant
+        count: roomCount // Add room count from row 6
       });
       
-      console.log(`Created room type: ${roomType} (${subType} variant) - Total cost: ${totalCost} (last valid data row: ${lastValidDataRow + 1})`);
+      console.log(`Created room type: ${roomType} (${subType} variant) - Total cost: ${totalCost}, Room count: ${roomCount} (last valid data row: ${lastValidDataRow + 1})`);
     }
   });
   
