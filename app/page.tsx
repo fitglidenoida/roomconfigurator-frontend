@@ -123,7 +123,7 @@ export default function RoomConfigurator() {
           setProjectCurrency(parsedProjectData.currency || 'USD');
           setInflation(parseFloat(parsedProjectData.inflation) || 0);
           setNetworkCost(parseFloat(parsedProjectData.networkCost) || 0);
-          setMiscellaneous(parseFloat(parsedProjectData.miscCost) || 0);
+          // Don't set miscellaneous here - will be set from extracted costs below
           setApprovedCapex(parseFloat(parsedProjectData.capex) || 0);
           
           // Set bill of materials for AV-BOQ section
@@ -134,6 +134,18 @@ export default function RoomConfigurator() {
           const labourCost = parsedFinalProjectCosts.labour_cost || 0;
           const networkCostValue = parsedFinalProjectCosts.network_cost || 0;
           const miscellaneousCost = parsedFinalProjectCosts.miscellaneous_cost || 0;
+          
+          // Debug: Log the actual values being used
+          console.log('Main page cost mapping:', {
+            parsedFinalProjectCosts,
+            parsedProjectData,
+            totalRoomCost,
+            labourCost,
+            networkCostValue,
+            miscellaneousCost,
+            projectDataLabourCost: parsedProjectData?.labourCost,
+            projectDataMiscCost: parsedProjectData?.miscCost
+          });
           
           // Set the calculated values
           setHardwareCost(totalRoomCost);
@@ -239,9 +251,18 @@ export default function RoomConfigurator() {
     const totalRoomCost = updatedConfigs.reduce((sum, config) => sum + config.subtotal, 0);
     setHardwareCost(totalRoomCost);
     
-    // Recalculate labour cost (10% of room costs only)
-    const labourCost = totalRoomCost * 0.1;
+    // Use extracted labour cost if available, otherwise calculate as 10% of room costs
+    const extractedLabourCost = parseFloat(projectData?.labourCost) || 0;
+    const labourCost = extractedLabourCost > 0 ? extractedLabourCost : (totalRoomCost * 0.1);
     setLabourCost(labourCost);
+    
+    // Debug: Log labour cost calculation in handleQtyChange
+    console.log('handleQtyChange labour cost:', {
+      extractedLabourCost,
+      calculatedLabourCost: totalRoomCost * 0.1,
+      finalLabourCost: labourCost,
+      projectDataLabourCost: projectData?.labourCost
+    });
     
     // Recalculate subtotal before inflation
     const subtotal = totalRoomCost + labourCost + networkCost + miscellaneous;
