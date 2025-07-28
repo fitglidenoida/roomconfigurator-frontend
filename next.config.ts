@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['recharts'],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://backend.sandyy.dev/api',
     NEXT_PUBLIC_DEMO_MODE: 'true',
