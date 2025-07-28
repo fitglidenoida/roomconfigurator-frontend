@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { apiService } from '../lib/api';
-import { parseExcelFile, parseMaterialsListSheet, ExcelParseResult, RoomTypeData, categorizeCostItem } from '../lib/excelParser';
+
 
 const regionMap: Record<string, string[]> = {
-  NAMR: ['USA', 'Canada', 'Mexico'],
-  EMESA: ['United Kingdom', 'Germany', 'France', 'South Africa', 'Netherlands'],
-  'APACME': ['India', 'Singapore', 'UAE', 'Qatar'],
+  'NAMR': ['United States', 'Canada', 'Mexico'],
+  'EMESA': ['United Kingdom', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Belgium', 'Switzerland', 'Austria', 'Sweden', 'Norway', 'Denmark', 'Finland', 'Poland', 'Czech Republic', 'Hungary', 'Romania', 'Bulgaria', 'Greece', 'Portugal', 'Ireland', 'South Africa', 'Nigeria', 'Kenya', 'Egypt', 'Morocco', 'Tunisia', 'Algeria', 'Ghana', 'Ethiopia', 'Uganda', 'Tanzania', 'Zimbabwe', 'Botswana', 'Namibia', 'Zambia', 'Malawi', 'Mozambique', 'Angola', 'Congo', 'Cameroon', 'Senegal', 'Ivory Coast', 'Mali', 'Burkina Faso', 'Niger', 'Chad', 'Sudan', 'South Sudan', 'Central African Republic', 'Gabon', 'Equatorial Guinea', 'Sao Tome and Principe', 'Cape Verde', 'Guinea-Bissau', 'Guinea', 'Sierra Leone', 'Liberia', 'Togo', 'Benin', 'Mauritania', 'Western Sahara', 'Djibouti', 'Eritrea', 'Somalia', 'Comoros', 'Seychelles', 'Mauritius', 'Madagascar', 'Reunion', 'Mayotte'],
+  'APACME': ['China', 'Japan', 'South Korea', 'India', 'Australia', 'New Zealand', 'Singapore', 'Malaysia', 'Thailand', 'Vietnam', 'Philippines', 'Indonesia', 'Taiwan', 'Hong Kong', 'Macau', 'Pakistan', 'Bangladesh', 'Sri Lanka', 'Nepal', 'Bhutan', 'Maldives', 'Myanmar', 'Cambodia', 'Laos', 'Brunei', 'Papua New Guinea', 'Fiji', 'Vanuatu', 'Solomon Islands', 'New Caledonia', 'French Polynesia', 'Samoa', 'Tonga', 'Kiribati', 'Tuvalu', 'Nauru', 'Palau', 'Micronesia', 'Marshall Islands', 'Timor-Leste', 'Mongolia', 'Kazakhstan', 'Uzbekistan', 'Kyrgyzstan', 'Tajikistan', 'Turkmenistan', 'Afghanistan', 'Iran', 'Iraq', 'Saudi Arabia', 'United Arab Emirates', 'Qatar', 'Kuwait', 'Bahrain', 'Oman', 'Yemen', 'Jordan', 'Lebanon', 'Syria', 'Israel', 'Palestine', 'Cyprus', 'Turkey', 'Georgia', 'Armenia', 'Azerbaijan']
 };
 
 const countryRegionMap: Record<string, { region: string; country: string }> = {
@@ -100,8 +100,14 @@ export default function ProjectMetadataForm() {
   const [uploading, setUploading] = useState(false);
   const [invalidEntries, setInvalidEntries] = useState<any[]>([]);
   
-  // New state for room configuration workflow
-  const [parseResult, setParseResult] = useState<ExcelParseResult | null>(null);
+  // Updated parseResult state type to match the new return type of parseSRMFile
+  const [parseResult, setParseResult] = useState<{
+    srmData: any[];
+    roomMappings: any[];
+    billOfMaterials: any[];
+    finalProjectCosts: any;
+    roomTypes: any[];
+  } | null>(null);
   const [fileType, setFileType] = useState<'SRM' | 'BOQ' | null>(null);
   const [detectedFileType, setDetectedFileType] = useState<'SRM' | 'BOQ' | null>(null);
   const [fileContent, setFileContent] = useState<any>(null);
@@ -221,133 +227,11 @@ export default function ProjectMetadataForm() {
     return 'SRM';
   };
 
-  // Simple SRM parser that extracts room types without validation
-  const parseSRMFile = async (
-    fileContent: any,
-    region: string,
-    country: string,
-    currency: string
-  ): Promise<ExcelParseResult> => {
+  // Helper function to read file content
+  const readFileContent = async (file: File): Promise<any> => {
     return new Promise((resolve, reject) => {
-      try {
-        // Process the file content directly
-        const roomTypes: RoomTypeData[] = [];
-        const invalidEntries: any[] = [];
-        
-        // Process each sheet in the file content
-        Object.keys(fileContent).forEach(sheetName => {
-          console.log(`Processing sheet: ${sheetName}`);
-          const sheetData = fileContent[sheetName];
-          if (!Array.isArray(sheetData)) return;
-          
-          console.log(`Sheet data rows: ${sheetData.length}`);
-          
-          // Look for room type and count columns
-          console.log(`\n=== Processing rows in ${sheetName} ===`);
-          sheetData.forEach((row: any, rowIndex: number) => {
-            // Debug: Show what we're reading
-            const roomTypeValue = row.room_type || row.room_name || row['Room Type'] || row['Room Name'] || '';
-            const countValue = row.count || row.quantity || row.Count || row.Quantity || 0;
-            console.log(`Row ${rowIndex + 1}: room_type="${roomTypeValue}", count="${countValue}"`);
-            
-            if (roomTypeValue && countValue) {
-              const roomTypeName = String(roomTypeValue).trim();
-              const count = parseFloat(String(countValue)) || 0;
-              
-              // Skip empty rows
-              if (!roomTypeName) {
-                return;
-              }
-              
-              // Skip header row (contains "room type" or similar)
-              if (roomTypeName.toLowerCase().includes('room type') || 
-                  roomTypeName.toLowerCase().includes('space type') ||
-                  roomTypeName.toLowerCase().includes('type') && roomTypeName.toLowerCase().includes('count')) {
-                console.log(`Skipping header row: "${roomTypeName}"`);
-                return;
-              }
-              
-              // Skip if count is 0 or invalid
-              if (count <= 0) {
-                console.log(`Skipping zero count for: "${roomTypeName}"`);
-                return;
-              }
-              
-              // Normalize room type name (convert "Single Offices" to "Partner Cabins")
-              let normalizedRoomType = roomTypeName;
-              if (roomTypeName.toLowerCase().includes('single office') || roomTypeName.toLowerCase().includes('single offices')) {
-                normalizedRoomType = 'Partner Cabins';
-              }
-              
-              // Create a simple room type entry without components
-              roomTypes.push({
-                room_type: normalizedRoomType,
-                components: [], // Empty components array for SRM
-                total_cost: 0, // Will be calculated later during mapping
-                pax_count: 0,
-                category: 'SRM Room Type',
-                labour_cost: 0,
-                miscellaneous_cost: 0,
-                sub_type: 'Standard',
-                count: count // Store the count from SRM
-              });
-              
-              console.log(`Found SRM room type: ${roomTypeName} -> ${normalizedRoomType} (count: ${count})`);
-            }
-          });
-          
-          console.log(`Total room types found in sheet ${sheetName}: ${roomTypes.length}`);
-        });
-        
-        const result: ExcelParseResult = {
-          roomTypes,
-          invalidEntries,
-          labourCost: 0,
-          miscellaneousCost: 0,
-          sourceFile: 'SRM File'
-        };
-        
-        resolve(result);
-      } catch (error) {
-        console.error('SRM parsing error:', error);
-        reject(error);
-      }
-    });
-  };
-
-  // New handlers for room configuration workflow
-  const handleRoomConfigFileUpload = async (file: File) => {
-    if (!region || !country) {
-      setError('Please select region and country first.');
-      return;
-    }
-
-    // File validation for demo
-    const maxSize = 10 * 1024 * 1024; // 10MB limit
-    if (file.size > maxSize) {
-      setError('File size too large. Please upload a file smaller than 10MB.');
-      return;
-    }
-
-    const allowedTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel', // .xls
-      'application/octet-stream' // Some systems send this for Excel files
-    ];
-    
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
-      setError('Please upload a valid Excel file (.xlsx or .xls)');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      // First, read the file to detect its type
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
           const workbook = XLSX.read(data, { type: 'array' });
@@ -359,354 +243,272 @@ export default function ProjectMetadataForm() {
             fileContent[sheetName] = XLSX.utils.sheet_to_json(worksheet);
           });
           
-          // Store file content and detected type for confirmation
-          setFileContent(fileContent);
-          const detectedType = detectFileType(file.name, fileContent);
-          setDetectedFileType(detectedType);
-          setShowFileTypeConfirmation(true);
-          setLoading(false);
-          
+          resolve(fileContent);
         } catch (error) {
-          console.error('Error reading file:', error);
-          setError('Failed to read the file. Please try again.');
-          setLoading(false);
+          reject(error);
         }
       };
-      
+      reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsArrayBuffer(file);
-    } catch (error) {
-      console.error('Error processing file:', error);
-      setError('Failed to process the file. Please try again.');
-      setLoading(false);
-    }
+    });
   };
 
-  const handleFileTypeConfirmation = async (confirmedType: 'SRM' | 'BOQ') => {
-    setFileType(confirmedType);
-    setShowFileTypeConfirmation(false);
-    setLoading(true);
-    
-    try {
-      if (confirmedType === 'SRM') {
-        // Process as SRM - extract room requirements
-        const result = await parseSRMFile(fileContent, region, country, currency);
-        setParseResult(result);
+  // Updated parseSRMFile to properly parse SRM format
+  const parseSRMFile = async (
+    fileContent: any,
+    region: string,
+    country: string,
+    currency: string
+  ): Promise<{
+    srmData: any[];
+    roomMappings: any[];
+    billOfMaterials: any[];
+    finalProjectCosts: any;
+    roomTypes: any[];
+  }> => {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log('Parsing SRM file with content:', fileContent);
         
-        if (result.roomTypes.length === 0) {
-          setError('No room types found in the SRM file.');
-        } else {
-          // Store SRM data in sessionStorage for room mapping page
-          const srmData = result.roomTypes.map((room, index) => ({
-            id: `srm-${index}`,
-            room_name: room.room_type,
-            space_type: room.room_type.toLowerCase().includes('partner') || 
-                       room.room_type.toLowerCase().includes('office') || 
-                       room.room_type.toLowerCase().includes('workstation') ||
-                       room.room_type.toLowerCase().includes('cabin') ||
-                       room.room_type.toLowerCase().includes('desk') ||
-                       room.room_type.toLowerCase().includes('individual') ? 'i-space' : 'we-space',
-            count: room.count || 1,
-            category: room.category || 'SRM Room Type',
-            description: `From SRM: ${room.room_type} (Count: ${room.count || 1})`
-          }));
+        // Extract SRM data from the first sheet
+        const firstSheetName = Object.keys(fileContent)[0];
+        const sheetData = fileContent[firstSheetName] || [];
+        
+        console.log('Sheet data:', sheetData);
+        
+        // Parse SRM data looking for Space Type, Room Type, Count columns
+        const srmData: any[] = [];
+        let roomId = 1;
+        
+        sheetData.forEach((row: any, index: number) => {
+          // Look for the expected SRM columns
+          const spaceType = row['Space Type'] || row['space_type'] || row['SpaceType'] || '';
+          const roomType = row['Room Type'] || row['room_type'] || row['RoomType'] || '';
+          const count = row['Count'] || row['count'] || row['Quantity'] || row['quantity'] || 0;
           
-          sessionStorage.setItem('srmData', JSON.stringify(srmData));
+          console.log(`Row ${index + 1}: Space Type="${spaceType}", Room Type="${roomType}", Count="${count}"`);
           
-          // Store project details for room mapping page
-          // For SRM: Use manual input or calculated percentages (no extraction)
-          const projectData = {
-            region,
-            country,
-            currency,
-            projectName,
-            capex,
-            networkCost,
-            labourCost, // Use manual input for SRM
-            miscCost,   // Use manual input for SRM
-            inflation
-          };
-          sessionStorage.setItem('projectData', JSON.stringify(projectData));
-          
-          // Debug: Log SRM cost handling
-          console.log('SRM Flow - Cost handling:', {
-            manualLabourCost: labourCost,
-            manualMiscCost: miscCost,
-            calculatedLabourPercentage: getLabourCostPercentage(region, country),
-            note: 'SRM uses manual input or calculated percentages (no extraction)'
-          });
-          
-          setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
-        }
-              } else {
-          // Process as BOQ - extract detailed components and create room instances
-          const result = await parseExcelFileContent(fileContent, region, country, currency);
-          setParseResult(result);
-          
-          if (result.roomTypes.length === 0) {
-            setError('No valid components found in the BOQ file.');
-          } else {
-            // Create room instances and AV BOQ from the BOQ data
-            await createRoomInstancesAndAVBOQ(result, region, country, currency);
-            
-            // Store project details for consistency with SRM flow
-            // For BOQ: Use extracted costs from file, fallback to manual input
-            const projectData = {
-              region,
-              country,
-              currency,
-              projectName,
-              capex,
-              networkCost,
-              labourCost: result.labourCost || labourCost, // Use extracted labour cost if available
-              miscCost: result.miscellaneousCost || miscCost, // Use extracted misc cost if available
-              inflation
-            };
-            sessionStorage.setItem('projectData', JSON.stringify(projectData));
-            
-            // Store the parse result for room-types page
-            sessionStorage.setItem('excelParseResult', JSON.stringify(result));
-            
-            // Create bill of materials for main configurator
-            const billOfMaterials = result.roomTypes.flatMap(room => room.components);
-            sessionStorage.setItem('billOfMaterials', JSON.stringify(billOfMaterials));
-            
-            // Create final project costs
-            const totalHardwareCost = result.roomTypes.reduce((sum, room) => sum + room.total_cost, 0);
-            // Use extracted labour and miscellaneous costs from parser, fallback to manual input or calculation
-            const labourCostValue = result.labourCost || parseFloat(labourCost) || (totalHardwareCost * (getLabourCostPercentage(region, country) / 100));
-            const inflationValue = parseFloat(inflation) || 0;
-            const networkCostValue = parseFloat(networkCost) || 0;
-            const miscCostValue = result.miscellaneousCost || parseFloat(miscCost) || 0;
-            
-            // Debug: Log which cost values are being used
-            console.log('Cost extraction debug:', {
-              extractedLabourCost: result.labourCost,
-              manualLabourCost: parseFloat(labourCost),
-              calculatedLabourCost: totalHardwareCost * (getLabourCostPercentage(region, country) / 100),
-              finalLabourCost: labourCostValue,
-              extractedMiscCost: result.miscellaneousCost,
-              manualMiscCost: parseFloat(miscCost),
-              finalMiscCost: miscCostValue
-            });
-            
-            const finalProjectCosts = {
-              hardware_cost: totalHardwareCost,
-              labour_cost: labourCostValue,
-              network_cost: networkCostValue,
-              miscellaneous_cost: miscCostValue,
-              inflation_amount: (totalHardwareCost + labourCostValue + networkCostValue + miscCostValue) * (inflationValue / 100),
-              total_project_cost: totalHardwareCost + labourCostValue + networkCostValue + miscCostValue + ((totalHardwareCost + labourCostValue + networkCostValue + miscCostValue) * (inflationValue / 100))
-            };
-            sessionStorage.setItem('finalProjectCosts', JSON.stringify(finalProjectCosts));
-            
-            // Debug: Log all stored data
-            console.log('BOQ Flow - All stored data:');
-            console.log('projectData:', projectData);
-            console.log('excelParseResult:', result);
-            console.log('billOfMaterials:', billOfMaterials);
-            console.log('finalProjectCosts:', finalProjectCosts);
-            console.log('roomInstances:', sessionStorage.getItem('roomInstances'));
-            console.log('avBOQ:', sessionStorage.getItem('avBOQ'));
-            
-            setSuccess(`BOQ file processed! Found ${result.roomTypes.length} room types. Created room instances and AV BOQ.`);
+          // Skip header rows or empty rows
+          if (!spaceType || !roomType || count <= 0) {
+            console.log(`Skipping row ${index + 1} - invalid data`);
+            return;
           }
+          
+          // Skip if it's a header row
+          if (spaceType.toLowerCase().includes('space type') || 
+              roomType.toLowerCase().includes('room type') ||
+              spaceType.toLowerCase().includes('type') && roomType.toLowerCase().includes('type')) {
+            console.log(`Skipping header row: "${spaceType}" - "${roomType}"`);
+            return;
+          }
+          
+          // Create SRM room entry
+          const srmRoom = {
+            id: `room-${roomId}`,
+            room_name: roomType,
+            room_type: roomType,
+            space_type: spaceType.toLowerCase().includes('i-space') ? 'i-space' : 'we-space',
+            category: spaceType,
+            count: parseInt(count.toString()) || 0,
+            status: 'pending'
+          };
+          
+          srmData.push(srmRoom);
+          roomId++;
+          
+          console.log(`Added SRM room: ${roomType} (${count} units) - ${spaceType}`);
+        });
+        
+        console.log('Parsed SRM data:', srmData);
+        
+        if (srmData.length === 0) {
+          throw new Error('No valid SRM data found. Please ensure your file has Space Type, Room Type, and Count columns.');
         }
+        
+        // Create room mappings (simplified for SRM)
+        const roomMappings = srmData.map((room: any, index: number) => ({
+          srm_room_id: room.id,
+          room_name: room.room_name,
+          status: 'mapped',
+          selected_room_type: {
+            id: index + 1,
+            name: room.room_type,
+            room_type: room.room_type.toLowerCase().replace(/\s+/g, '-')
+          }
+        }));
+        
+        // Create bill of materials (empty for SRM - will be populated in configuration)
+        const billOfMaterials: any[] = [];
+        
+        // Create final project costs (will be calculated in configuration)
+        const finalProjectCosts = {
+          total_room_cost: 0,
+          labour_cost: 0,
+          network_cost: 0,
+          miscellaneous_cost: 0,
+          total_project_cost: 0
+        };
+        
+        // Extract room types from SRM data
+        const roomTypes = srmData.map((room: any, index: number) => ({
+          id: index + 1,
+          name: room.room_type,
+          room_type: room.room_type.toLowerCase().replace(/\s+/g, '-'),
+          description: room.room_type,
+          space_type: room.space_type,
+          category: room.category
+        }));
+        
+        resolve({
+          srmData,
+          roomMappings,
+          billOfMaterials,
+          finalProjectCosts,
+          roomTypes
+        });
+      } catch (error) {
+        console.error('SRM parsing error:', error);
+        reject(error);
+      }
+    });
+  };
+
+  // New handlers for room configuration workflow
+  const handleRoomConfigFileUpload = async (file: File) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Processing SRM file:', file.name);
+      
+      // Validate file type
+      const allowedTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+        'application/octet-stream' // Some systems send this for Excel files
+      ];
+      
+      if (!allowedTypes.includes(file.type) && !file.name.match(/\.(xlsx|xls)$/i)) {
+        setError('Please upload a valid Excel file (.xlsx or .xls)');
+        setLoading(false);
+        return;
+      }
+      
+      // Read the file content
+      const fileContent = await readFileContent(file);
+      
+      // Validate SRM format - check if it has the expected columns
+      const firstSheetName = Object.keys(fileContent)[0];
+      const sheetData = fileContent[firstSheetName] || [];
+      
+      if (sheetData.length === 0) {
+        setError('The uploaded file appears to be empty or invalid');
+        setLoading(false);
+        return;
+      }
+      
+      // Check if it has SRM-like columns
+      const firstRow = sheetData[0] || {};
+      const hasSRMColumns = firstRow['Space Type'] || firstRow['space_type'] || 
+                           firstRow['Room Type'] || firstRow['room_type'] ||
+                           firstRow['Count'] || firstRow['count'];
+      
+      if (!hasSRMColumns) {
+        setError('This file does not appear to be a valid SRM file. Please ensure it contains Space Type, Room Type, and Count columns.');
+        setLoading(false);
+        return;
+      }
+      
+      // Parse SRM file (no file type detection needed - this is SRM only)
+      const parseResult = await parseSRMFile(fileContent, region, country, currency);
+      
+      console.log('SRM parsing result:', parseResult);
+      
+      // Store the parsed data
+      sessionStorage.setItem('srmData', JSON.stringify(parseResult.srmData));
+      sessionStorage.setItem('roomMappings', JSON.stringify(parseResult.roomMappings));
+      sessionStorage.setItem('billOfMaterials', JSON.stringify(parseResult.billOfMaterials));
+      sessionStorage.setItem('finalProjectCosts', JSON.stringify(parseResult.finalProjectCosts));
+      
+      // Navigate to room mapping
+      router.push('/room-mapping');
+      
     } catch (error) {
-      console.error('Error processing file:', error);
-      setError('Failed to process the file. Please try again.');
+      console.error('Error processing SRM file:', error);
+      setError('Failed to process SRM file: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
   };
 
-  const parseExcelFileContent = async (fileContent: any, region: string, country: string, currency: string): Promise<ExcelParseResult> => {
-    console.log('Parsing BOQ file content using intelligent parser');
+  const handleSRMProcessing = async () => {
+    setLoading(true);
+    setError(null);
     
-    // Use XLSX directly instead of the File-based parser
     try {
-      // Convert fileContent to workbook format that XLSX can process
-      const workbook = XLSX.utils.book_new();
+      // Process as SRM - extract room requirements
+      const result = await parseSRMFile(fileContent, region, country, currency);
+      setParseResult(result);
       
-      // Add sheets to workbook
-      Object.keys(fileContent).forEach(sheetName => {
-        const sheetData = fileContent[sheetName];
-        if (Array.isArray(sheetData)) {
-          const worksheet = XLSX.utils.json_to_sheet(sheetData);
-          XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-        }
-      });
-      
-      console.log('Created workbook with sheets:', workbook.SheetNames);
-      
-      // Use the existing robust Excel parser with workbook
-      console.log('Using parseMaterialsListSheet for all BOQ files');
-      const result = parseMaterialsListSheet(workbook, 'BOQ_File.xlsx', region, country, currency);
-      
-      console.log('Parsing result from existing parser:', result);
-      return result;
-    } catch (error) {
-      console.error('Error using existing parser, falling back to intelligent simplified parser:', error);
-      console.log('🤖 ML: Using intelligent fallback with sheet detection and type safety');
-      
-      // Intelligent fallback parser with ML-like sheet detection
-      const roomTypes: RoomTypeData[] = [];
-      const invalidEntries: any[] = [];
-      
-      // ML-like sheet detection: Skip irrelevant sheets
-      const relevantSheets = Object.keys(fileContent).filter(sheetName => {
-        const lowerSheetName = sheetName.toLowerCase();
-        // Skip sheets that are typically not room data
-        const skipSheets = ['summary', 'index', 'contents', 'toc', 'metadata', 'info', 'notes', 'readme'];
-        const shouldSkip = skipSheets.some(skip => lowerSheetName.includes(skip));
+      if (result.roomTypes.length === 0) {
+        setError('No room types found in the SRM file.');
+      } else {
+        // Store SRM data in sessionStorage for room mapping page
+        const srmData = result.roomTypes.map((room: any, index: number) => ({
+          id: `srm-${index}`,
+          room_name: room.room_type,
+          space_type: room.room_type.toLowerCase().includes('partner') || 
+                     room.room_type.toLowerCase().includes('office') || 
+                     room.room_type.toLowerCase().includes('workstation') ||
+                     room.room_type.toLowerCase().includes('cabin') ||
+                     room.room_type.toLowerCase().includes('desk') ||
+                     room.room_type.toLowerCase().includes('individual') ? 'i-space' : 'we-space',
+          count: room.count || 1,
+          category: room.category || 'SRM Room Type',
+          description: `From SRM: ${room.room_type} (Count: ${room.count || 1})`
+        }));
         
-        if (shouldSkip) {
-          console.log(`🤖 ML: Skipping irrelevant sheet "${sheetName}" (contains: ${skipSheets.find(skip => lowerSheetName.includes(skip))})`);
-          return false;
-        }
+        sessionStorage.setItem('srmData', JSON.stringify(srmData));
         
-        // Prefer sheets with more data (likely to be main content)
-        const sheetData = fileContent[sheetName];
-        const hasEnoughData = Array.isArray(sheetData) && sheetData.length > 10;
-        
-        if (!hasEnoughData) {
-          console.log(`🤖 ML: Skipping sheet "${sheetName}" (insufficient data: ${sheetData?.length || 0} rows)`);
-          return false;
-        }
-        
-        console.log(`🤖 ML: Processing relevant sheet "${sheetName}" (${sheetData.length} rows)`);
-        return true;
-      });
-      
-      if (relevantSheets.length === 0) {
-        console.error('🤖 ML: No relevant sheets found! Available sheets:', Object.keys(fileContent));
-        throw new Error('No relevant sheets found in the file');
-      }
-      
-      // Process only relevant sheets
-      relevantSheets.forEach(sheetName => {
-        console.log(`Processing relevant sheet: ${sheetName}`);
-        const sheetData = fileContent[sheetName];
-        
-        console.log(`Sheet ${sheetName} has ${sheetData.length} rows`);
-        
-        // For BOQ files, the room type is the sheet name itself
-        const roomType = sheetName;
-        console.log(`Using sheet name as room type: ${roomType}`);
-        
-        // Filter and process components using the existing categorization logic
-        const components = sheetData.map((row: any) => {
-          // Handle BOQ structure with __EMPTY_ fields
-          const description = row.__EMPTY_1 || row.description || row.Description || row.desc || row.Desc || row.name || row.Name || '';
-          const make = row.__EMPTY_2 || row.make || row.Make || row.manufacturer || row.Manufacturer || '';
-          const model = row.__EMPTY_3 || row.model || row.Model || row.model_number || row.ModelNumber || '';
-          const qty = parseFloat(row.__EMPTY_4 || row.qty || row.Qty || row.quantity || row.Quantity || row.QTY || '1') || 1;
-          const unit_cost = parseFloat(row.__EMPTY_6 || row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0;
-          
-          return {
-            description: String(description || ''), // Ensure string type
-            make: String(make || ''),
-            model: String(model || ''),
-            qty,
-            unit_cost,
-            room_type: roomType,
-            currency: currency,
-            region: region,
-            country: country,
-            source_file: 'BOQ File'
-          };
-        }).filter((comp: any) => {
-          // Use the existing categorization logic to filter out non-hardware items
-          const category = categorizeCostItem(comp.description);
-          return category === 'hardware' && comp.description && comp.unit_cost > 0 && comp.description.trim() !== '';
-        });
-        
-        if (components.length > 0) {
-          const totalCost = components.reduce((sum: number, comp: any) => sum + (comp.qty * comp.unit_cost), 0);
-          
-          const roomTypeData = {
-            room_type: roomType,
-            components,
-            total_cost: totalCost,
-            pax_count: 0,
-            category: 'BOQ Room Type',
-            sub_type: 'Standard'
-          };
-          
-          console.log(`Created room type "${roomType}" with ${components.length} components:`, roomTypeData);
-          roomTypes.push(roomTypeData);
-        } else {
-          console.log(`No valid components found for room type "${roomType}"`);
-        }
-      });
-      
-      return {
-        roomTypes,
-        invalidEntries,
-        labourCost: 0,
-        miscellaneousCost: 0,
-        sourceFile: 'BOQ File'
-      };
-    }
-  };
-
-  const createRoomInstancesAndAVBOQ = async (parseResult: ExcelParseResult, region: string, country: string, currency: string) => {
-    try {
-      console.log('Creating room instances and AV BOQ from parseResult:', parseResult);
-      
-      // Create room instances for each room type
-      const roomInstances = [];
-      for (const roomType of parseResult.roomTypes) {
-        console.log('Processing room type:', roomType);
-        
-        const roomInstance = {
-          room_type: roomType.room_type,
-          sub_type: roomType.sub_type || 'Standard',
+        // Store project details for room mapping page
+        // For SRM: Use manual input or calculated percentages (no extraction)
+        const projectData = {
           region,
           country,
           currency,
-          total_cost: roomType.total_cost,
-          components: roomType.components.map(comp => ({
-            description: comp.description,
-            make: comp.make,
-            model: comp.model,
-            qty: comp.qty,
-            unit_cost: comp.unit_cost,
-            currency: comp.currency
-          }))
+          projectName,
+          capex,
+          networkCost,
+          labourCost, // Use manual input for SRM
+          miscCost,   // Use manual input for SRM
+          inflation
         };
-        roomInstances.push(roomInstance);
-        console.log('Created room instance:', roomInstance);
+        sessionStorage.setItem('projectData', JSON.stringify(projectData));
+        
+        // Debug: Log SRM cost handling
+        console.log('SRM Flow - Cost handling:', {
+          manualLabourCost: labourCost,
+          manualMiscCost: miscCost,
+          calculatedLabourPercentage: getLabourCostPercentage(region, country),
+          note: 'SRM uses manual input or calculated percentages (no extraction)'
+        });
+        
+        setSuccess(`SRM file processed! Found ${result.roomTypes.length} room types. Ready to map to existing room types.`);
+        
+        // Navigate to room mapping
+        router.push('/room-mapping');
       }
-      
-      // Store room instances in sessionStorage
-      sessionStorage.setItem('roomInstances', JSON.stringify(roomInstances));
-      console.log('Stored roomInstances in sessionStorage:', roomInstances);
-      
-      // Create AV BOQ from the components
-      const avBOQ = {
-        project_name: projectName,
-        region,
-        country,
-        currency,
-        total_cost: parseResult.roomTypes.reduce((sum, room) => sum + room.total_cost, 0),
-        room_types: parseResult.roomTypes.map(room => ({
-          room_type: room.room_type,
-          sub_type: room.sub_type || 'Standard',
-          components: room.components,
-          total_cost: room.total_cost
-        }))
-      };
-      
-      // Store AV BOQ in sessionStorage
-      sessionStorage.setItem('avBOQ', JSON.stringify(avBOQ));
-      console.log('Stored avBOQ in sessionStorage:', avBOQ);
-      
-      console.log('Successfully created room instances and AV BOQ');
     } catch (error) {
-      console.error('Error creating room instances and AV BOQ:', error);
-      throw error;
+      console.error('Error processing SRM file:', error);
+      setError('Failed to process the SRM file. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
+
+
+
+
 
   const handleRoomConfigFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -774,47 +576,22 @@ export default function ProjectMetadataForm() {
         return;
       }
 
-      // Calculate total project cost
-      const totalHardwareCost = parseResult.roomTypes.reduce((sum, room) => sum + room.total_cost, 0);
-      const totalLabourCost = parseResult.labourCost || 0;
-      const totalMiscellaneousCost = parseResult.miscellaneousCost || 0;
-      const totalCapex = totalHardwareCost + totalLabourCost + totalMiscellaneousCost;
+      // Calculate total project cost for SRM
+      const totalHardwareCost = parseResult.roomTypes.reduce((sum: number, room: any) => sum + (room.total_cost || 0), 0);
+      const totalCapex = totalHardwareCost + parseFloat(labourCost) || 0 + parseFloat(miscCost) || 0;
 
-      // Create project
-      // Cost priority: Manual input > Extracted from file > 0
-      const manualLabourCost = parseFloat(labourCost) || 0;
-      const manualMiscCost = parseFloat(miscCost) || 0;
-      const extractedLabourCost = parseResult.labourCost || 0;
-      const extractedMiscCost = parseResult.miscellaneousCost || 0;
-      
-      // Use manual input if provided (> 0), otherwise use extracted costs from parser
-      // This ensures extracted costs (109,030.71 labour, 18,866.97 misc) are used when manual fields are empty
-      const finalLabourCost = manualLabourCost > 0 ? manualLabourCost : extractedLabourCost;
-      const finalMiscCost = manualMiscCost > 0 ? manualMiscCost : extractedMiscCost;
-      
-      // Debug: Log cost mapping
-      console.log('Project creation cost mapping:', {
-        manualLabourCost,
-        manualMiscCost,
-        extractedLabourCost,
-        extractedMiscCost,
-        finalLabourCost,
-        finalMiscCost,
-        manualLabourInput: labourCost,
-        manualMiscInput: miscCost
-      });
-      
+      // Create project for SRM (uses manual input costs)
       const projectData = {
         project_name: projectName,
         region,
         country,
         currency,
-        capex_amount: parseFloat(capex) || 0, // Leave blank for PM to fill
+        capex_amount: parseFloat(capex) || 0,
         network_cost: parseFloat(networkCost) || 0,
-        labour_cost: finalLabourCost,
+        labour_cost: parseFloat(labourCost) || 0,
         inflation: parseFloat(inflation) || 0,
-        misc_cost: finalMiscCost,
-        notes: `Project created from Excel file: ${parseResult.sourceFile}. Total project estimate: ${totalCapex}`
+        misc_cost: parseFloat(miscCost) || 0,
+        notes: `Project created from SRM file. Total project estimate: ${totalCapex}`
       };
 
       console.log('Creating project with data:', projectData);
@@ -1257,7 +1034,7 @@ export default function ProjectMetadataForm() {
         </div>
 
         <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-4">Project Setup</h1>
+        <h1 className="text-3xl font-bold text-gray-800 mb-4">Cost Estimation - SRM Upload</h1>
         
         {/* 5-Minute Workflow Progress */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -1697,11 +1474,11 @@ export default function ProjectMetadataForm() {
                         Cancel
                       </button>
                       <button
-                        onClick={() => handleFileTypeConfirmation(detectedFileType!)}
+                        onClick={handleSRMProcessing}
                         disabled={loading}
                         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                       >
-                        {loading ? 'Processing...' : 'Confirm & Process'}
+                        {loading ? 'Processing...' : 'Process SRM File'}
                       </button>
                     </div>
                   </div>

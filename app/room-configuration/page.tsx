@@ -652,7 +652,7 @@ export default function RoomConfigurationPage() {
       sessionStorage.setItem('finalProjectCosts', JSON.stringify(projectCosts));
       
       // Navigate to configurator page
-      window.location.href = '/';
+      window.location.href = '/configurator';
     } catch (err) {
       console.error('Error submitting configuration:', err);
       setError('Failed to submit configuration: ' + (err instanceof Error ? err.message : String(err)));
