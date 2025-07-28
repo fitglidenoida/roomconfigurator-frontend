@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { apiService } from '../lib/api';
-import { parseExcelFile, ExcelParseResult, RoomTypeData, categorizeCostItem } from '../lib/excelParser';
+import { parseExcelFile, parseMaterialsListSheet, ExcelParseResult, RoomTypeData, categorizeCostItem } from '../lib/excelParser';
 
 const regionMap: Record<string, string[]> = {
   NAMR: ['USA', 'Canada', 'Mexico'],
@@ -520,35 +520,72 @@ export default function ProjectMetadataForm() {
   };
 
   const parseExcelFileContent = async (fileContent: any, region: string, country: string, currency: string): Promise<ExcelParseResult> => {
-    console.log('Parsing BOQ file content using existing robust parser');
+    console.log('Parsing BOQ file content using intelligent parser');
     
-    // Convert fileContent back to a File-like object for the existing parser
-    // Create a mock file object that the existing parser can work with
-    const mockFile = {
-      name: 'BOQ_File.xlsx',
-      content: fileContent
-    };
-    
+    // Use XLSX directly instead of the File-based parser
     try {
-      // Use the existing robust Excel parser
-      const result = await parseExcelFile(mockFile as any, region, country, currency);
+      // Convert fileContent to workbook format that XLSX can process
+      const workbook = XLSX.utils.book_new();
+      
+      // Add sheets to workbook
+      Object.keys(fileContent).forEach(sheetName => {
+        const sheetData = fileContent[sheetName];
+        if (Array.isArray(sheetData)) {
+          const worksheet = XLSX.utils.json_to_sheet(sheetData);
+          XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        }
+      });
+      
+      console.log('Created workbook with sheets:', workbook.SheetNames);
+      
+      // Use the existing robust Excel parser with workbook
+      console.log('Using parseMaterialsListSheet for all BOQ files');
+      const result = parseMaterialsListSheet(workbook, 'BOQ_File.xlsx', region, country, currency);
+      
       console.log('Parsing result from existing parser:', result);
       return result;
     } catch (error) {
-      console.error('Error using existing parser, falling back to simplified parser:', error);
+      console.error('Error using existing parser, falling back to intelligent simplified parser:', error);
+      console.log('🤖 ML: Using intelligent fallback with sheet detection and type safety');
       
-      // Fallback to simplified parser if the existing one fails
+      // Intelligent fallback parser with ML-like sheet detection
       const roomTypes: RoomTypeData[] = [];
       const invalidEntries: any[] = [];
       
-      // Process each sheet in the file content
-      Object.keys(fileContent).forEach(sheetName => {
-        console.log(`Processing sheet: ${sheetName}`);
-        const sheetData = fileContent[sheetName];
-        if (!Array.isArray(sheetData)) {
-          console.log(`Sheet ${sheetName} is not an array, skipping`);
-          return;
+      // ML-like sheet detection: Skip irrelevant sheets
+      const relevantSheets = Object.keys(fileContent).filter(sheetName => {
+        const lowerSheetName = sheetName.toLowerCase();
+        // Skip sheets that are typically not room data
+        const skipSheets = ['summary', 'index', 'contents', 'toc', 'metadata', 'info', 'notes', 'readme'];
+        const shouldSkip = skipSheets.some(skip => lowerSheetName.includes(skip));
+        
+        if (shouldSkip) {
+          console.log(`🤖 ML: Skipping irrelevant sheet "${sheetName}" (contains: ${skipSheets.find(skip => lowerSheetName.includes(skip))})`);
+          return false;
         }
+        
+        // Prefer sheets with more data (likely to be main content)
+        const sheetData = fileContent[sheetName];
+        const hasEnoughData = Array.isArray(sheetData) && sheetData.length > 10;
+        
+        if (!hasEnoughData) {
+          console.log(`🤖 ML: Skipping sheet "${sheetName}" (insufficient data: ${sheetData?.length || 0} rows)`);
+          return false;
+        }
+        
+        console.log(`🤖 ML: Processing relevant sheet "${sheetName}" (${sheetData.length} rows)`);
+        return true;
+      });
+      
+      if (relevantSheets.length === 0) {
+        console.error('🤖 ML: No relevant sheets found! Available sheets:', Object.keys(fileContent));
+        throw new Error('No relevant sheets found in the file');
+      }
+      
+      // Process only relevant sheets
+      relevantSheets.forEach(sheetName => {
+        console.log(`Processing relevant sheet: ${sheetName}`);
+        const sheetData = fileContent[sheetName];
         
         console.log(`Sheet ${sheetName} has ${sheetData.length} rows`);
         
@@ -566,9 +603,9 @@ export default function ProjectMetadataForm() {
           const unit_cost = parseFloat(row.__EMPTY_6 || row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0;
           
           return {
-            description,
-            make,
-            model,
+            description: String(description || ''), // Ensure string type
+            make: String(make || ''),
+            model: String(model || ''),
             qty,
             unit_cost,
             room_type: roomType,
@@ -577,14 +614,14 @@ export default function ProjectMetadataForm() {
             country: country,
             source_file: 'BOQ File'
           };
-        }).filter(comp => {
+        }).filter((comp: any) => {
           // Use the existing categorization logic to filter out non-hardware items
           const category = categorizeCostItem(comp.description);
           return category === 'hardware' && comp.description && comp.unit_cost > 0 && comp.description.trim() !== '';
         });
         
         if (components.length > 0) {
-          const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
+          const totalCost = components.reduce((sum: number, comp: any) => sum + (comp.qty * comp.unit_cost), 0);
           
           const roomTypeData = {
             room_type: roomType,
