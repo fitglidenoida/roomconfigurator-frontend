@@ -300,52 +300,76 @@ export default function RoomConfigurationPage() {
   const calculateProjectCosts = (rooms: ConfiguredRoom[]) => {
     // Get project data from sessionStorage
     let projectData = null;
+    let finalProjectCosts = null;
+    
     if (typeof window !== 'undefined' && window.sessionStorage) {
       try {
         const projectDataStr = sessionStorage.getItem('projectData');
+        const finalProjectCostsStr = sessionStorage.getItem('finalProjectCosts');
+        
         if (projectDataStr) {
           projectData = JSON.parse(projectDataStr);
         }
+        
+        if (finalProjectCostsStr) {
+          finalProjectCosts = JSON.parse(finalProjectCostsStr);
+        }
+        
+        console.log('SessionStorage data in calculateProjectCosts:', {
+          projectData,
+          finalProjectCosts,
+          hasProjectData: !!projectData,
+          hasFinalProjectCosts: !!finalProjectCosts
+        });
+        
       } catch (error) {
-        console.warn('Error reading project data from sessionStorage:', error);
+        console.warn('Error reading data from sessionStorage:', error);
       }
     }
     
-    console.log('Project data in calculateProjectCosts:', projectData);
-    
     const totalRoomCost = rooms.reduce((sum, room) => sum + (room.estimated_cost * room.count), 0);
     
-    // Use actual project data instead of percentages
-    const networkCost = parseFloat(projectData?.networkCost) || 0;
-    const miscellaneousCost = parseFloat(projectData?.miscCost) || 0;
-    const extractedLabourCost = parseFloat(projectData?.labourCost) || 0;
+    // Priority order for cost sources:
+    // 1. finalProjectCosts (from BOQ parsing)
+    // 2. projectData (from SRM manual input)
+    // 3. Default calculations
     
-    console.log('Calculated costs:', {
-      totalRoomCost,
-      networkCost,
-      miscellaneousCost,
-      extractedLabourCost,
-      networkCostRaw: projectData?.networkCost,
-      miscCostRaw: projectData?.miscCost,
-      labourCostRaw: projectData?.labourCost
-    });
+    let networkCost = 0;
+    let miscellaneousCost = 0;
+    let labourCost = 0;
     
-    // Use extracted labour cost if available, otherwise calculate as 10% of room costs
-    const labourCost = extractedLabourCost > 0 ? extractedLabourCost : (totalRoomCost * 0.1);
+    if (finalProjectCosts) {
+      // BOQ flow - use extracted costs
+      networkCost = parseFloat(finalProjectCosts.network_cost) || 0;
+      miscellaneousCost = parseFloat(finalProjectCosts.miscellaneous_cost) || 0;
+      labourCost = parseFloat(finalProjectCosts.labour_cost) || 0;
+      
+      console.log('Using BOQ extracted costs:', { networkCost, miscellaneousCost, labourCost });
+    } else if (projectData) {
+      // SRM flow - use manual input costs
+      networkCost = parseFloat(projectData.networkCost) || 0;
+      miscellaneousCost = parseFloat(projectData.miscCost) || 0;
+      labourCost = parseFloat(projectData.labourCost) || 0;
+      
+      console.log('Using SRM manual costs:', { networkCost, miscellaneousCost, labourCost });
+    }
+    
+    // Fallback: if no costs found, use default calculations
+    if (labourCost === 0) {
+      labourCost = totalRoomCost * 0.1; // 10% of room costs
+      console.log('Using default labour cost calculation:', labourCost);
+    }
     
     // Total project cost = Room costs + Labour + Network + Miscellaneous
     const totalProjectCost = totalRoomCost + labourCost + networkCost + miscellaneousCost;
     
-    console.log('Labour cost calculation:', {
+    console.log('Final cost calculation:', {
       totalRoomCost,
       networkCost,
       miscellaneousCost,
-      extractedLabourCost,
       labourCost,
-      labourCostPercentage: (labourCost / totalRoomCost) * 100,
-      expectedLabourCost: totalRoomCost * 0.1,
       totalProjectCost,
-      usingExtractedCost: extractedLabourCost > 0
+      costSource: finalProjectCosts ? 'BOQ Extracted' : projectData ? 'SRM Manual' : 'Default'
     });
 
     setProjectCosts({

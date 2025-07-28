@@ -83,9 +83,18 @@ export default function RoomConfigurator() {
         const billOfMaterials = sessionStorage.getItem('billOfMaterials');
         const finalProjectCosts = sessionStorage.getItem('finalProjectCosts');
         const projectDataStr = sessionStorage.getItem('projectData');
+        const srmData = sessionStorage.getItem('srmData');
+        
+        console.log('Configurator - SessionStorage check:', {
+          roomMappings: !!roomMappings,
+          billOfMaterials: !!billOfMaterials,
+          finalProjectCosts: !!finalProjectCosts,
+          projectData: !!projectDataStr,
+          srmData: !!srmData
+        });
         
         // Check for backup data if sessionStorage is empty
-        if (!roomMappings || !billOfMaterials || !finalProjectCosts || !projectDataStr) {
+        if (!roomMappings || !projectDataStr) {
           const backupData = localStorage.getItem('roomConfigsBackup');
           const lastSaved = localStorage.getItem('lastSaved');
           
@@ -108,14 +117,11 @@ export default function RoomConfigurator() {
           }
         }
 
-        if (roomMappings && billOfMaterials && finalProjectCosts && projectDataStr) {
+        if (projectDataStr) {
           // Display success message
           setShowSuccessMessage(true);
           
-          // Parse all data
-          const parsedRoomMappings = JSON.parse(roomMappings);
-          const parsedBillOfMaterials = JSON.parse(billOfMaterials);
-          const parsedFinalProjectCosts = JSON.parse(finalProjectCosts);
+          // Parse project data
           const parsedProjectData = JSON.parse(projectDataStr);
           
           // Set project data
@@ -124,22 +130,44 @@ export default function RoomConfigurator() {
           setInflation(parseFloat(parsedProjectData.inflation) || 0);
           setApprovedCapex(parseFloat(parsedProjectData.capex) || 0);
           
-          // Set bill of materials for AV-BOQ section
-          setBillOfMaterials(parsedBillOfMaterials);
-
-          // Use extracted costs directly from projectData (simplified flow)
-          const totalRoomCost = parsedFinalProjectCosts.total_room_cost || 0;
-          const labourCost = parseFloat(parsedProjectData.labourCost) || 0;
-          const networkCostValue = parseFloat(parsedProjectData.networkCost) || 0;
-          const miscellaneousCost = parseFloat(parsedProjectData.miscCost) || 0;
+          // Priority-based cost loading
+          let totalRoomCost = 0;
+          let labourCost = 0;
+          let networkCostValue = 0;
+          let miscellaneousCost = 0;
+          
+          if (finalProjectCosts) {
+            // BOQ flow - use extracted costs
+            const parsedFinalProjectCosts = JSON.parse(finalProjectCosts);
+            totalRoomCost = parsedFinalProjectCosts.total_room_cost || 0;
+            labourCost = parseFloat(parsedFinalProjectCosts.labour_cost) || 0;
+            networkCostValue = parseFloat(parsedFinalProjectCosts.network_cost) || 0;
+            miscellaneousCost = parseFloat(parsedFinalProjectCosts.miscellaneous_cost) || 0;
+            
+            console.log('Using BOQ extracted costs:', { totalRoomCost, labourCost, networkCostValue, miscellaneousCost });
+          } else {
+            // SRM flow - use manual input costs
+            labourCost = parseFloat(parsedProjectData.labourCost) || 0;
+            networkCostValue = parseFloat(parsedProjectData.networkCost) || 0;
+            miscellaneousCost = parseFloat(parsedProjectData.miscCost) || 0;
+            
+            // For SRM, room cost will be calculated from room configurations
+            console.log('Using SRM manual costs:', { labourCost, networkCostValue, miscellaneousCost });
+          }
+          
+          // Set bill of materials if available
+          if (billOfMaterials) {
+            const parsedBillOfMaterials = JSON.parse(billOfMaterials);
+            setBillOfMaterials(parsedBillOfMaterials);
+          }
           
           // Debug: Log the actual values being used
-          console.log('Main page cost mapping (SIMPLIFIED):', {
+          console.log('Configurator cost mapping:', {
             totalRoomCost,
             labourCost,
             networkCostValue,
             miscellaneousCost,
-            source: 'projectData (extracted from parser)'
+            costSource: finalProjectCosts ? 'BOQ Extracted' : 'SRM Manual'
           });
           
           // Set the calculated values
@@ -165,59 +193,41 @@ export default function RoomConfigurator() {
           setCostVsBudget(budgetDiff);
           
           // Get SRM data for correct quantities
-          const srmData = sessionStorage.getItem('srmData');
           const parsedSrmData = srmData ? JSON.parse(srmData) : [];
           
-          // Process only mapped rooms (exclude skipped rooms)
-          const mappedRooms = parsedRoomMappings.filter((mapping: any) => 
-            mapping.status === 'mapped' || mapping.status === 'new_room'
-          );
-          
-          // Create room configs from mapped rooms only
-          const configs: RoomConfig[] = mappedRooms.map((mapping: any) => {
-            const roomName = mapping.selected_room_type?.name || mapping.new_room_name || 'Unknown';
+          // Process room mappings if available
+          if (roomMappings) {
+            const parsedRoomMappings = JSON.parse(roomMappings);
             
-            // Get the correct quantity from SRM data using the original SRM room ID
-            const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
-            const roomCount = srmRoom?.count || 1;
-            
-            // Calculate cost per room type from bill of materials
-            const roomComponents = parsedBillOfMaterials.filter((item: any) => 
-              item.room_type === roomName
+            // Process only mapped rooms (exclude skipped rooms)
+            const mappedRooms = parsedRoomMappings.filter((mapping: any) => 
+              mapping.status === 'mapped' || mapping.status === 'new_room'
             );
             
-            const totalCostPerRoom = roomComponents.reduce((sum: number, comp: any) => {
-              return sum + (comp.unit_cost * comp.quantity_per_room);
-            }, 0);
+            console.log('Processing mapped rooms:', mappedRooms.length);
             
-            return {
-              room_type: roomName,
-              total_cost: totalCostPerRoom,
-              qty: roomCount,
-              subtotal: totalCostPerRoom * roomCount
-            };
-          });
-          
-          setRoomConfigs(configs);
-          
-          // Save room instances to sessionStorage for dashboard and other pages
-          const roomInstances = configs.map((config, idx) => ({
-            id: idx + 1,
-            room_type: config.room_type,
-            total_cost: config.total_cost,
-            qty: config.qty,
-            subtotal: config.subtotal,
-            components: [] // Will be populated from bill of materials if needed
-          }));
-          
-          sessionStorage.setItem('roomInstances', JSON.stringify(roomInstances));
+            // Create room configurations from mapped rooms
+            const roomConfigurations: RoomConfig[] = mappedRooms.map((mapping: any) => {
+              const srmRoom = parsedSrmData.find((room: any) => room.id === mapping.srm_room_id);
+              const roomName = srmRoom ? srmRoom.room_name : mapping.room_name || 'Unknown Room';
+              const roomCount = srmRoom ? srmRoom.count : 1;
+              
+              return {
+                room_type: roomName,
+                total_cost: 0, // Will be calculated when components are selected
+                qty: roomCount,
+                subtotal: 0
+              };
+            });
+            
+            setRoomConfigs(roomConfigurations);
+          }
         } else {
-          // No configured data, show empty state
-          setRoomConfigs([]);
+          setError('No project data found. Please complete the project setup first.');
         }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load room configurations');
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to load project data: ' + (error instanceof Error ? error.message : String(error)));
       } finally {
         setLoading(false);
       }
@@ -226,52 +236,28 @@ export default function RoomConfigurator() {
     fetchData();
   }, []); // Only run once on mount, don't re-run when costs change
 
+  // Update cost summary when room configurations change
+  useEffect(() => {
+    if (roomConfigs.length > 0) {
+      updateCostSummary(roomConfigs);
+    }
+  }, [roomConfigs, labourCost, networkCost, miscellaneous, inflation, approvedCapex]);
+
   const handleQtyChange = (index: number, value: string) => {
     const newQty = parseInt(value) || 0;
-    const updatedConfigs = [...roomConfigs];
-    updatedConfigs[index].qty = newQty;
-    updatedConfigs[index].subtotal = updatedConfigs[index].total_cost * newQty;
     
-    setRoomConfigs(updatedConfigs);
-    
-    // Auto-save to localStorage as backup
-    try {
-      localStorage.setItem('roomConfigsBackup', JSON.stringify(updatedConfigs));
-      localStorage.setItem('lastSaved', new Date().toISOString());
-    } catch (error) {
-      console.warn('Failed to save backup to localStorage:', error);
-    }
-    
-    // Recalculate total room cost based on updated quantities
-    const totalRoomCost = updatedConfigs.reduce((sum, config) => sum + config.subtotal, 0);
-    setHardwareCost(totalRoomCost);
-    
-    // Keep the extracted labour cost (don't recalculate)
-    const currentLabourCost = labourCost; // Use existing labour cost from state
-    setLabourCost(currentLabourCost);
-    
-    // Debug: Log labour cost preservation
-    console.log('handleQtyChange (SIMPLIFIED):', {
-      totalRoomCost,
-      preservedLabourCost: currentLabourCost,
-      note: 'Using extracted labour cost, not recalculating'
+    setRoomConfigs(prev => {
+      const updatedConfigs = prev.map((config, i) => 
+        i === index 
+          ? { ...config, qty: newQty, subtotal: config.total_cost * newQty }
+          : config
+      );
+      
+      // Update cost summary with new configurations
+      updateCostSummary(updatedConfigs);
+      
+      return updatedConfigs;
     });
-    
-    // Recalculate subtotal before inflation
-    const subtotal = totalRoomCost + currentLabourCost + networkCost + miscellaneous;
-    setSubtotalBeforeInflation(subtotal);
-    
-    // Recalculate inflation amount
-    const inflationAmount = subtotal * (inflation / 100);
-    setInflationAmount(inflationAmount);
-    
-    // Recalculate total project cost WITH inflation
-    const totalProjectCostWithInflation = subtotal + inflationAmount;
-    setTotalProjectCost(totalProjectCostWithInflation);
-    
-    // Recalculate budget status
-    const budgetDiff = approvedCapex - totalProjectCostWithInflation;
-    setCostVsBudget(budgetDiff);
     
     // Update sessionStorage with new quantities for persistence
     const roomMappings = sessionStorage.getItem('roomMappings');
@@ -281,7 +267,7 @@ export default function RoomConfigurator() {
       try {
         const parsedMappings = JSON.parse(roomMappings);
         const parsedSrmData = JSON.parse(srmData);
-        const roomType = updatedConfigs[index].room_type;
+        const roomType = roomConfigs[index].room_type;
         
         // Find the corresponding mapping to get the SRM room ID
         const mapping = parsedMappings.find((m: any) => {
@@ -305,7 +291,7 @@ export default function RoomConfigurator() {
         }
         
         // Save room instances for dashboard and other pages
-        const roomInstances = updatedConfigs.map((config, idx) => ({
+        const roomInstances = roomConfigs.map((config, idx) => ({
           id: idx + 1,
           room_type: config.room_type,
           total_cost: config.total_cost,
@@ -320,6 +306,41 @@ export default function RoomConfigurator() {
         console.warn('Error updating sessionStorage data:', error);
       }
     }
+  };
+
+  const updateCostSummary = (configs: RoomConfig[]) => {
+    // Calculate total room cost from configurations
+    const totalRoomCost = configs.reduce((sum, config) => sum + config.subtotal, 0);
+    
+    // Update hardware cost
+    setHardwareCost(totalRoomCost);
+    
+    // Recalculate subtotal and total project cost
+    const subtotal = totalRoomCost + labourCost + networkCost + miscellaneous;
+    setSubtotalBeforeInflation(subtotal);
+    
+    // Calculate inflation amount
+    const inflationAmount = subtotal * (inflation / 100);
+    setInflationAmount(inflationAmount);
+    
+    // Calculate total project cost WITH inflation
+    const totalProjectCostWithInflation = subtotal + inflationAmount;
+    setTotalProjectCost(totalProjectCostWithInflation);
+    
+    // Calculate budget status
+    const budgetDiff = approvedCapex - totalProjectCostWithInflation;
+    setCostVsBudget(budgetDiff);
+    
+    console.log('Updated cost summary:', {
+      totalRoomCost,
+      labourCost,
+      networkCost,
+      miscellaneous,
+      subtotal,
+      inflationAmount,
+      totalProjectCostWithInflation,
+      budgetDiff
+    });
   };
 
   const formatCurrency = (amount: number) => {
