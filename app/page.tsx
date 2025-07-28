@@ -348,7 +348,7 @@ export default function RoomConfigurator() {
             Room Configuration
           </Link>
           <Link href="/variants" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/variants' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            Variants
+              Variants
           </Link>
           <Link href="/" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
             Configurator
@@ -357,7 +357,7 @@ export default function RoomConfigurator() {
       </div>
 
       <h1 className="text-3xl font-bold mb-8 text-gray-800">Room Configurator</h1>
-      
+
       {/* Success Message for Configuration Submission */}
       {showSuccessMessage && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
@@ -523,35 +523,35 @@ export default function RoomConfigurator() {
               {/* 2. SRM Table Section */}
               <div className="bg-white p-6 rounded-lg shadow-md mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Space Requirement Matrix (SRM)</h3>
-                <div className="overflow-x-auto shadow-md rounded-lg">
-                  <table className="min-w-full bg-white border border-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 border-b">Room Type</th>
+          <div className="overflow-x-auto shadow-md rounded-lg">
+            <table className="min-w-full bg-white border border-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700 border-b">Room Type</th>
                         <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700 border-b">Total Cost ({projectCurrency})</th>
-                        <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700 border-b">Quantity</th>
+                  <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700 border-b">Quantity</th>
                         <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700 border-b">Subtotal ({projectCurrency})</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                </tr>
+              </thead>
+              <tbody>
                       {roomConfigs.map((config, index) => (
-                        <tr key={config.room_type} className="hover:bg-gray-100 transition-colors">
-                          <td className="px-4 py-2 text-sm text-gray-600 border-b">{config.room_type || 'Unknown'}</td>
-                          <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
+                    <tr key={config.room_type} className="hover:bg-gray-100 transition-colors">
+                      <td className="px-4 py-2 text-sm text-gray-600 border-b">{config.room_type || 'Unknown'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
                             {formatCurrency(config.total_cost)}
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-600 border-b text-center">
-                            <input
-                              type="number"
-                              min="0"
-                              value={config.qty}
-                              onChange={(e) => handleQtyChange(index, e.target.value)}
-                              className="w-16 text-center border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </td>
-                          <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600 border-b text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          value={config.qty}
+                          onChange={(e) => handleQtyChange(index, e.target.value)}
+                          className="w-16 text-center border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600 text-right border-b">
                             {formatCurrency(config.subtotal)}
-                          </td>
+                      </td>
                         </tr>
                       ))}
                     </tbody>
@@ -668,19 +668,19 @@ export default function RoomConfigurator() {
                                 <td className="px-4 py-2 text-sm text-gray-600 border-b text-center">{item.total_quantity}</td>
                                 <td className="px-4 py-2 text-sm text-gray-600 border-b text-right">{formatCurrency(item.unit_cost)}</td>
                                 <td className="px-4 py-2 text-sm text-gray-600 border-b text-right">{formatCurrency(item.total_cost)}</td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
                               <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                                 No bill of materials available
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                    
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
                     <div className="flex justify-end">
                       <button 
                         onClick={() => {
@@ -715,11 +715,11 @@ export default function RoomConfigurator() {
                       >
                         📥 Download AV-BOQ Excel
                       </button>
-                    </div>
-                  </div>
-                )}
+          </div>
+        </div>
+      )}
               </div>
-            </div>
+              </div>
           ) : (
             <div className="text-center py-12">
               <div className="text-gray-500">
@@ -732,7 +732,7 @@ export default function RoomConfigurator() {
                   <Link href="/project-data" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                     Start SRM Project →
                   </Link>
-                </div>
+              </div>
               </div>
             </div>
           )}

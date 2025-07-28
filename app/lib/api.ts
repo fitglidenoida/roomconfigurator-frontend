@@ -2,14 +2,12 @@ import axios from 'axios';
 
 // Centralized API configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.sandyy.dev/api';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'demo-key-2024'; // Replace with your actual API key for production
 
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_KEY}`,
   },
   timeout: 30000, // 30 second timeout
 });
