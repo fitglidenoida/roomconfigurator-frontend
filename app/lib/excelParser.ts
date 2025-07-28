@@ -458,7 +458,7 @@ const categorizeRoomType = (roomType: string, _components: ExcelComponent[]): st
 // };
 
 // Helper function to categorize cost line items
-const categorizeCostItem = (description: string): 'labour' | 'miscellaneous' | 'hardware' => {
+export const categorizeCostItem = (description: string): 'labour' | 'miscellaneous' | 'hardware' => {
   const desc = description.toLowerCase();
   
   // Labour cost keywords

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { apiService } from '../lib/api';
-import { parseExcelFile, ExcelParseResult, RoomTypeData } from '../lib/excelParser';
+import { parseExcelFile, ExcelParseResult, RoomTypeData, categorizeCostItem } from '../lib/excelParser';
 
 const regionMap: Record<string, string[]> = {
   NAMR: ['USA', 'Canada', 'Mexico'],
@@ -498,44 +498,44 @@ export default function ProjectMetadataForm() {
   };
 
   const parseExcelFileContent = async (fileContent: any, region: string, country: string, currency: string): Promise<ExcelParseResult> => {
-    console.log('Parsing BOQ file content:', fileContent);
-    const roomTypes: RoomTypeData[] = [];
-    const invalidEntries: any[] = [];
+    console.log('Parsing BOQ file content using existing robust parser');
     
-    // Process each sheet in the file content
-    Object.keys(fileContent).forEach(sheetName => {
-      console.log(`Processing sheet: ${sheetName}`);
-      const sheetData = fileContent[sheetName];
-      if (!Array.isArray(sheetData)) {
-        console.log(`Sheet ${sheetName} is not an array, skipping`);
-        return;
-      }
+    // Convert fileContent back to a File-like object for the existing parser
+    // Create a mock file object that the existing parser can work with
+    const mockFile = {
+      name: 'BOQ_File.xlsx',
+      content: fileContent
+    };
+    
+    try {
+      // Use the existing robust Excel parser
+      const result = await parseExcelFile(mockFile as any, region, country, currency);
+      console.log('Parsing result from existing parser:', result);
+      return result;
+    } catch (error) {
+      console.error('Error using existing parser, falling back to simplified parser:', error);
       
-      console.log(`Sheet ${sheetName} has ${sheetData.length} rows`);
+      // Fallback to simplified parser if the existing one fails
+      const roomTypes: RoomTypeData[] = [];
+      const invalidEntries: any[] = [];
       
-      // Group components by room type
-      const roomTypeGroups: { [key: string]: any[] } = {};
-      
-      // For BOQ files, the room type is the sheet name itself
-      const roomType = sheetName;
-      console.log(`Using sheet name as room type: ${roomType}`);
-      
-      // Group all rows under this room type
-      if (!roomTypeGroups[roomType]) {
-        roomTypeGroups[roomType] = [];
-      }
-      roomTypeGroups[roomType].push(...sheetData);
-      
-      console.log('Room type groups:', roomTypeGroups);
-      
-      // Create room types from grouped data
-      Object.keys(roomTypeGroups).forEach(roomTypeName => {
-        if (roomTypeName === 'Unknown') {
-          console.log('Skipping unknown room type');
+      // Process each sheet in the file content
+      Object.keys(fileContent).forEach(sheetName => {
+        console.log(`Processing sheet: ${sheetName}`);
+        const sheetData = fileContent[sheetName];
+        if (!Array.isArray(sheetData)) {
+          console.log(`Sheet ${sheetName} is not an array, skipping`);
           return;
         }
         
-        const components = roomTypeGroups[roomTypeName].map((row: any) => {
+        console.log(`Sheet ${sheetName} has ${sheetData.length} rows`);
+        
+        // For BOQ files, the room type is the sheet name itself
+        const roomType = sheetName;
+        console.log(`Using sheet name as room type: ${roomType}`);
+        
+        // Filter and process components using the existing categorization logic
+        const components = sheetData.map((row: any) => {
           // Handle BOQ structure with __EMPTY_ fields
           const description = row.__EMPTY_1 || row.description || row.Description || row.desc || row.Desc || row.name || row.Name || '';
           const make = row.__EMPTY_2 || row.make || row.Make || row.manufacturer || row.Manufacturer || '';
@@ -543,58 +543,29 @@ export default function ProjectMetadataForm() {
           const qty = parseFloat(row.__EMPTY_4 || row.qty || row.Qty || row.quantity || row.Quantity || row.QTY || '1') || 1;
           const unit_cost = parseFloat(row.__EMPTY_6 || row.unit_cost || row['Unit Cost'] || row.unit_price || row['Unit Price'] || row.price || row.Price || row.cost || row.Cost || '0') || 0;
           
-          const component = {
+          return {
             description,
             make,
             model,
             qty,
             unit_cost,
-            room_type: roomTypeName,
+            room_type: roomType,
             currency: currency,
             region: region,
             country: country,
             source_file: 'BOQ File'
           };
-          
-          console.log('Created component:', component);
-          return component;
         }).filter(comp => {
-          // Skip header rows, empty descriptions, and rows without costs
-          const isValidComponent = comp.description && 
-                                  comp.unit_cost > 0 && 
-                                  comp.description.trim() !== '' &&
-                                  !comp.description.toLowerCase().includes('s.no') &&
-                                  !comp.description.toLowerCase().includes('description') &&
-                                  !comp.description.toLowerCase().includes('make') &&
-                                  !comp.description.toLowerCase().includes('model') &&
-                                  !comp.description.toLowerCase().includes('qty') &&
-                                  !comp.description.toLowerCase().includes('unit price') &&
-                                  !comp.description.toLowerCase().includes('extn. price') &&
-                                  !comp.description.toLowerCase().includes('total investment') &&
-                                  !comp.description.toLowerCase().includes('plus gst') &&
-                                  !comp.description.toLowerCase().includes('bcg - chennai') &&
-                                  !comp.description.toLowerCase().includes('dated') &&
-                                  !comp.description.toLowerCase().includes('configuration for') &&
-                                  !comp.description.toLowerCase().includes('room dimension') &&
-                                  !comp.description.toLowerCase().includes('installation materials') &&
-                                  !comp.description.toLowerCase().includes('display devices') &&
-                                  !comp.description.toLowerCase().includes('video conferencing') &&
-                                  !comp.description.toLowerCase().includes('architectural connectivity') &&
-                                  !comp.description.toLowerCase().includes('room scheduling') &&
-                                  !comp.description.toLowerCase().includes('installation charges') &&
-                                  !comp.description.toLowerCase().includes('optional') &&
-                                  !comp.description.toLowerCase().includes('client scope') &&
-                                  !comp.description.toLowerCase().includes('zoom room license') &&
-                                  !comp.description.toLowerCase().includes('to be provided by client');
-          
-          return isValidComponent;
+          // Use the existing categorization logic to filter out non-hardware items
+          const category = categorizeCostItem(comp.description);
+          return category === 'hardware' && comp.description && comp.unit_cost > 0 && comp.description.trim() !== '';
         });
         
         if (components.length > 0) {
           const totalCost = components.reduce((sum, comp) => sum + (comp.qty * comp.unit_cost), 0);
           
-          const roomType = {
-            room_type: roomTypeName,
+          const roomTypeData = {
+            room_type: roomType,
             components,
             total_cost: totalCost,
             pax_count: 0,
@@ -602,23 +573,21 @@ export default function ProjectMetadataForm() {
             sub_type: 'Standard'
           };
           
-          console.log(`Created room type "${roomTypeName}" with ${components.length} components:`, roomType);
-          roomTypes.push(roomType);
+          console.log(`Created room type "${roomType}" with ${components.length} components:`, roomTypeData);
+          roomTypes.push(roomTypeData);
         } else {
-          console.log(`No valid components found for room type "${roomTypeName}"`);
+          console.log(`No valid components found for room type "${roomType}"`);
         }
       });
-    });
-    
-    console.log('Final room types:', roomTypes);
-    
-    return {
-      roomTypes,
-      invalidEntries,
-      labourCost: 0,
-      miscellaneousCost: 0,
-      sourceFile: 'BOQ File'
-    };
+      
+      return {
+        roomTypes,
+        invalidEntries,
+        labourCost: 0,
+        miscellaneousCost: 0,
+        sourceFile: 'BOQ File'
+      };
+    }
   };
 
   const createRoomInstancesAndAVBOQ = async (parseResult: ExcelParseResult, region: string, country: string, currency: string) => {
