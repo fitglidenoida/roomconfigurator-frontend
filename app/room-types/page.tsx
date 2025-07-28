@@ -376,7 +376,8 @@ function RoomTypeCreationContent() {
         room_type: generatedUID, // Generate UID manually
         region: region, // Add region field
         country: country, // Add country field
-        currency: currency // Add currency field
+        currency: currency, // Add currency field
+        project: projectId // Link to the project
       };
       
       // Room types are now region-based with proper schema fields
@@ -488,7 +489,8 @@ function RoomTypeCreationContent() {
               make: component.make,
               sub_type: roomSubType, // Use the room-level sub_type
               qty: excelComponent?.qty || 1,
-              unit_price: component.unit_cost
+              unit_price: component.unit_cost,
+              project: projectId // Link to the project
               // Note: region, country, currency are inherited from the room type relationship
             };
             

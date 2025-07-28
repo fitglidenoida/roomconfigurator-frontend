@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { parseExcelFile, ExcelParseResult } from '../lib/excelParser';
+import { apiService } from '../lib/api';
 
 export default function DataInputPage() {
   const router = useRouter();
@@ -234,8 +235,49 @@ export default function DataInputPage() {
         setMiscCost(parseResult.miscellaneousCost.toString());
       }
       
-      // Store project data
+      // Check for existing projects to prevent duplicates
+      console.log('Checking for existing projects...');
+      const existingProjectsResponse = await apiService.getProjects({
+        filters: {
+          project_name: { $eq: projectName },
+          region: { $eq: region },
+          country: { $eq: country }
+        }
+      });
+      
+      const existingProjects = existingProjectsResponse.data.data || [];
+      if (existingProjects.length > 0) {
+        setError(`Project "${projectName}" already exists in ${region}/${country}. Please use a different project name.`);
+        setLoading(false);
+        return;
+      }
+
+      // Calculate total project cost for BOQ
+      const totalHardwareCost = parseResult.roomTypes.reduce((sum: number, room: any) => sum + (room.total_cost || 0), 0);
+      const totalCapex = totalHardwareCost + parseResult.labourCost + parseResult.miscellaneousCost;
+
+      // Create project for BOQ (uses extracted costs)
       const projectData = {
+        project_name: projectName,
+        region,
+        country,
+        currency,
+        capex_amount: parseFloat(capex) || totalCapex,
+        network_cost: parseFloat(networkCost) || 0,
+        labour_cost: parseResult.labourCost > 0 ? parseResult.labourCost : parseFloat(labourCost) || 0,
+        inflation: parseFloat(inflation) || 0,
+        misc_cost: parseResult.miscellaneousCost > 0 ? parseResult.miscellaneousCost : parseFloat(miscCost) || 0,
+        notes: `Project created from BOQ file. Total project cost: ${totalCapex}`
+      };
+
+      console.log('Creating project with data:', projectData);
+      const projectResponse = await apiService.createProject(projectData);
+      const createdProject = projectResponse.data.data;
+
+      console.log('Project created successfully:', createdProject);
+      
+      // Store project data
+      const projectDataForStorage = {
         region,
         country,
         projectName,
@@ -247,18 +289,21 @@ export default function DataInputPage() {
         inflation,
         boqFile: boqFile.name,
         components: parseResult.roomTypes.flatMap(room => room.components),
-        roomTypes: parseResult.roomTypes
+        roomTypes: parseResult.roomTypes,
+        projectId: createdProject.id
       };
       
       // Store data in the format expected by room-types page
-      sessionStorage.setItem('dataInputProjectData', JSON.stringify(projectData));
+      sessionStorage.setItem('dataInputProjectData', JSON.stringify(projectDataForStorage));
       sessionStorage.setItem('excelParseResult', JSON.stringify(parseResult));
       
       console.log('Project data stored with BOQ parsing results');
-      setSuccess('BOQ file successfully processed. You can now continue to room setup.');
+      setSuccess('Project created successfully! Redirecting to room setup...');
       
-      // Navigate to room setup page
-      router.push('/room-types');
+      // Navigate to room types page with project ID
+      setTimeout(() => {
+        router.push(`/room-types?projectId=${createdProject.id}&projectName=${encodeURIComponent(projectName)}`);
+      }, 2000);
       
     } catch (error) {
       console.error('Error processing BOQ file:', error);
@@ -458,7 +503,15 @@ export default function DataInputPage() {
                   <p className="text-sm text-green-600">{success}</p>
                   <div className="mt-3">
                     <button
-                      onClick={() => router.push('/room-types')}
+                      onClick={() => {
+                        const storedData = sessionStorage.getItem('dataInputProjectData');
+                        if (storedData) {
+                          const data = JSON.parse(storedData);
+                          router.push(`/room-types?projectId=${data.projectId}&projectName=${encodeURIComponent(projectName)}`);
+                        } else {
+                          router.push('/room-types');
+                        }
+                      }}
                       className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
                     >
                       Continue to Room Setup
