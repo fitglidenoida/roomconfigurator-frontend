@@ -259,38 +259,38 @@ export default function PMDashboard() {
       // Cost breakdown by component type - show categorization of all AV components (ALWAYS run)
       console.log('Raw AV Components data sample:', avComponents.slice(0, 5).map((comp: any) => ({
         id: comp.id,
-        name: comp.name,
+        description: comp.description,
         component_type: comp.component_type,
-        category: comp.category,
-        sub_category: comp.sub_category
+        component_category: comp.component_category,
+        make: comp.make,
+        model: comp.model
       })));
       
       costBreakdown = avComponents.reduce((acc: any[], component: any) => {
         // Try multiple fields for categorization
         let type = component.component_type || 
-                  component.category || 
-                  component.sub_category || 
+                  component.component_category || 
                   'Uncategorized';
         
-        // If all components have the same type, categorize by name patterns
+        // If all components have the same type, categorize by description patterns
         if (type === 'Uncategorized' || type === 'AV Equipment' || type === '') {
-          const name = (component.name || '').toLowerCase();
+          const description = (component.description || '').toLowerCase();
           
-          if (name.includes('display') || name.includes('tv') || name.includes('monitor') || name.includes('screen')) {
+          if (description.includes('display') || description.includes('tv') || description.includes('monitor') || description.includes('screen')) {
             type = 'Displays';
-          } else if (name.includes('speaker') || name.includes('audio') || name.includes('sound') || name.includes('mic')) {
+          } else if (description.includes('speaker') || description.includes('audio') || description.includes('sound') || description.includes('mic')) {
             type = 'Audio';
-          } else if (name.includes('cable') || name.includes('wire') || name.includes('connector') || name.includes('hdmi')) {
+          } else if (description.includes('cable') || description.includes('wire') || description.includes('connector') || description.includes('hdmi')) {
             type = 'Cabling';
-          } else if (name.includes('mount') || name.includes('bracket') || name.includes('stand')) {
+          } else if (description.includes('mount') || description.includes('bracket') || description.includes('stand')) {
             type = 'Mounting';
-          } else if (name.includes('switch') || name.includes('matrix') || name.includes('controller')) {
+          } else if (description.includes('switch') || description.includes('matrix') || description.includes('controller')) {
             type = 'Control Systems';
-          } else if (name.includes('projector') || name.includes('lens')) {
+          } else if (description.includes('projector') || description.includes('lens')) {
             type = 'Projection';
-          } else if (name.includes('camera') || name.includes('video')) {
+          } else if (description.includes('camera') || description.includes('video')) {
             type = 'Video';
-          } else if (name.includes('light') || name.includes('led')) {
+          } else if (description.includes('light') || description.includes('led')) {
             type = 'Lighting';
           } else {
             type = 'Other Equipment';

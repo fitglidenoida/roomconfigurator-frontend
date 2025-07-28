@@ -159,7 +159,7 @@ export const apiService = {
 export const fetchAllPages = async (endpoint: string, params: any = {}) => {
   let allData: any[] = [];
   let page = 1;
-  const pageSize = 100;
+  const pageSize = 25; // Match Strapi's default page size
 
   console.log(`Fetching all pages for ${endpoint} with params:`, params);
 
@@ -174,7 +174,7 @@ export const fetchAllPages = async (endpoint: string, params: any = {}) => {
       });
 
       const { data, meta } = response.data;
-      console.log(`Page ${page}: Got ${data.length} items, total pages: ${meta.pagination.pageCount}`);
+      console.log(`Page ${page}: Got ${data.length} items, total pages: ${meta.pagination.pageCount}, total: ${meta.pagination.total}`);
       
       allData = [...allData, ...data];
 
@@ -191,7 +191,12 @@ export const fetchAllPages = async (endpoint: string, params: any = {}) => {
     // Fallback: try to fetch without pagination
     console.log(`Trying fallback fetch without pagination for ${endpoint}`);
     try {
-      const response = await apiClient.get(endpoint, { params });
+      const response = await apiClient.get(endpoint, { 
+        params: {
+          ...params,
+          'pagination[pageSize]': 1000 // Try to get all in one request
+        }
+      });
       const { data } = response.data;
       console.log(`Fallback fetch for ${endpoint}: Got ${data.length} items`);
       return data;
