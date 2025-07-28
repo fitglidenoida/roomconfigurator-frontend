@@ -115,18 +115,12 @@ function RoomTypeCreationContent() {
     
     setCheckingExisting(true);
     try {
-      // Fetch room types and filter by project
+      // Fetch all room types - they are region-based, not project-based
       const existingRoomTypesResponse = await apiService.getRoomTypes();
       const allExisting = existingRoomTypesResponse.data.data || [];
       
-      // Filter by project on frontend
-      const existing = allExisting.filter((rt: any) => {
-        const rtProject = rt.attributes?.project?.data?.id || rt.project?.id;
-        return rtProject === projectId;
-      });
-      
-      setExistingRoomTypes(existing);
-      console.log(`Found ${existing.length} existing room types for project ${projectId} out of ${allExisting.length} total:`, existing);
+      setExistingRoomTypes(allExisting);
+      console.log(`Found ${allExisting.length} existing room types total:`, allExisting);
     } catch (err) {
       console.error('Failed to fetch existing room types:', err);
       // If the API call fails, just continue without existing room type checking
@@ -375,8 +369,8 @@ function RoomTypeCreationContent() {
         room_type: generatedUID, // Generate UID manually
         region: region, // Add region field
         country: country, // Add country field
-        currency: currency, // Add currency field
-        project: projectId // Link to the project (Strapi will handle the relation)
+        currency: currency // Add currency field
+        // Note: project relationship will be established through room instances
       };
       
       // Room types are now region-based with proper schema fields
@@ -488,8 +482,8 @@ function RoomTypeCreationContent() {
               make: component.make,
               sub_type: roomSubType, // Use the room-level sub_type
               qty: excelComponent?.qty || 1,
-              unit_price: component.unit_cost,
-              project: projectId // Link to the project
+              unit_price: component.unit_cost
+              // Note: project relationship will be established through room instances
             };
             
             console.log('Creating room configuration line item with UID:', generatedRoomTypeUID);
