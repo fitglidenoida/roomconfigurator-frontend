@@ -173,6 +173,62 @@ export default function PMDashboard() {
               totalProjectCost
             });
             
+            // Calculate room level costs from SRM data for consistency
+            const roomCostMap = new Map();
+            
+            // Use SRM data as the source of truth for room types
+            if (parsedSrmData.length > 0) {
+              console.log('Processing SRM data for room level costs:', parsedSrmData);
+              parsedSrmData.forEach((srmRoom: any) => {
+                // Find corresponding mapping for this SRM room
+                const mapping = parsedRoomMappings.find((m: any) => m.srm_room_id === srmRoom.id);
+                
+                if (mapping && (mapping.status === 'mapped' || mapping.status === 'new_room')) {
+                  // Use SRM room name for consistency - check all possible field names
+                  const roomType = srmRoom.room_name || srmRoom.name || srmRoom.room_type || 'Unknown Room';
+                  const roomCount = srmRoom.count || 1;
+                  
+                  // Calculate cost per room from bill of materials
+                  const roomComponents = parsedBillOfMaterials.filter((item: any) => {
+                    const mappingRoomName = mapping.selected_room_type?.name || mapping.new_room_name;
+                    return item.room_type === mappingRoomName;
+                  });
+                  
+                  const costPerRoom = roomComponents.reduce((sum: number, comp: any) => {
+                    return sum + (comp.unit_cost * comp.quantity_per_room);
+                  }, 0);
+                  
+                  // Store cost per room (not total cost for all rooms)
+                  const costPerRoomValue = costPerRoom;
+                  
+                  if (roomCostMap.has(roomType)) {
+                    // If room type already exists, use the higher cost per room (for comparison)
+                    const existingCost = roomCostMap.get(roomType);
+                    roomCostMap.set(roomType, Math.max(existingCost, costPerRoomValue));
+                  } else {
+                    roomCostMap.set(roomType, costPerRoomValue);
+                  }
+                }
+              });
+            }
+            
+            roomLevelCosts = Array.from(roomCostMap.entries()).map(([roomType, cost]) => ({
+              room_type: roomType,
+              cost: cost as number,
+              count: 1
+            }));
+            
+            console.log('Room level costs calculated:', roomLevelCosts);
+            
+            // Calculate budget status - use raw values without conversion
+            const approvedBudget = parseFloat(parsedProjectData.capex) || 0;
+            budgetStatus = {
+              approved: approvedBudget,
+              actual: totalProjectCost,
+              variance: approvedBudget - totalProjectCost,
+              percentage: approvedBudget > 0 ? ((totalProjectCost / approvedBudget) * 100) : 0
+            };
+
             // Cost breakdown by component type - show categorization of all AV components
             costBreakdown = avComponents.reduce((acc, component) => {
               const type = component.component_type || 'Uncategorized';
@@ -208,16 +264,6 @@ export default function PMDashboard() {
               }
               return acc;
             }, [] as any[]);
-
-            // Update budget status with current total project cost if not already set
-            if (budgetStatus.approved > 0) {
-              budgetStatus = {
-                ...budgetStatus,
-                actual: totalProjectCost,
-                variance: budgetStatus.approved - totalProjectCost,
-                percentage: budgetStatus.approved > 0 ? ((totalProjectCost / budgetStatus.approved) * 100) : 0
-              };
-            }
 
             // Generate cost optimization suggestions based on real data
             const costOptimization = generateCostOptimizationSuggestions(avComponents, roomLevelCosts, totalProjectCost);
