@@ -5,21 +5,67 @@ import Link from 'next/link';
 import { fetchAllPages } from '../lib/api';
 import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents } from '../lib/mlService';
 
+// API function to update component categorization
+const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
+  try {
+    const response = await fetch(`https://backend.sandyy.dev/api/av-components/${componentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          component_type: type,
+          component_category: category
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update component: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Component updated successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error updating component:', error);
+    throw error;
+  }
+};
+
 // Manual Review Item Component
-const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (componentId: string, category: string, confidence: number, notes?: string) => void }) => {
-  const [selectedCategory, setSelectedCategory] = useState(item.suggested_type || 'Uncategorized');
+const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (componentId: string, type: string, category: string, confidence: number, notes?: string) => void }) => {
+  const [selectedType, setSelectedType] = useState(item.suggested_type || 'Uncategorized');
+  const [selectedCategory, setSelectedCategory] = useState(item.suggested_category || 'Uncategorized');
   const [confidence, setConfidence] = useState(80);
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
 
-  const categories = [
-    'Displays', 'Audio', 'Cabling', 'Mounting', 'Control Systems', 'Projection', 
-    'Video', 'Lighting', 'Processing', 'Rack & Enclosures', 'Network', 'Power', 
-    'Software', 'Tools & Accessories', 'Uncategorized'
+  const types = [
+    'Audio', 'Video', 'Control', 'Cabling', 'Mounting', 'Network', 'Power', 
+    'Lighting', 'Rack & Enclosures', 'Tools & Accessories', 'Uncategorized'
   ];
 
+  const getSubCategories = (type: string) => {
+    const subCategoriesMap: { [key: string]: string[] } = {
+      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
+      'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
+      'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
+      'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
+      'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
+      'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
+      'Power': ['UPS Systems', 'Power Supplies', 'PDUs', 'Batteries'],
+      'Lighting': ['LED Lights', 'Controls', 'Accessories'],
+      'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
+      'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
+      'Uncategorized': ['Uncategorized']
+    };
+    return subCategoriesMap[type] || ['Uncategorized'];
+  };
+
   const handleSubmit = () => {
-    onCategorize(item.component_id, selectedCategory, confidence, notes);
+    onCategorize(item.component_id, selectedType, selectedCategory, confidence, notes);
     setShowForm(false);
   };
 
@@ -32,8 +78,8 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
             {item.make} {item.model}
           </p>
           <div className="flex items-center space-x-4 mt-2">
-            <span className="text-sm text-gray-500">Current: {item.current_type}</span>
-            <span className="text-sm text-yellow-600 font-medium">Suggested: {item.suggested_type}</span>
+            <span className="text-sm text-gray-500">Current: {item.current_type} / {item.current_category}</span>
+            <span className="text-sm text-yellow-600 font-medium">Suggested: {item.suggested_type} / {item.suggested_category}</span>
             <span className="text-sm text-red-600 font-medium">Confidence: {item.confidence}%</span>
           </div>
           <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>
@@ -50,19 +96,36 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
 
       {showForm && (
         <div className="border-t pt-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type (Main Category)</label>
+              <select
+                value={selectedType}
+                onChange={(e) => {
+                  setSelectedType(e.target.value);
+                  setSelectedCategory('Uncategorized'); // Reset sub-category when type changes
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {types.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category (Sub-Category)</label>
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {categories.map(category => (
+                {getSubCategories(selectedType).map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Confidence (%)</label>
               <input
@@ -118,6 +181,8 @@ export default function AdminPage() {
   const [reviewedItems, setReviewedItems] = useState<Set<string>>(new Set());
   const [manualReviewFilter, setManualReviewFilter] = useState('');
   const [manualReviewCategory, setManualReviewCategory] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState(0);
 
   useEffect(() => {
     // Auto-run analysis on page load
@@ -165,23 +230,36 @@ export default function AdminPage() {
   };
 
   // Review functions
-  const handleHighConfidenceReview = (componentId: string, action: 'accept' | 'reject' | 'edit', newCategory?: string) => {
-    setReviewedItems(prev => new Set([...prev, componentId]));
-    
-    // Here you would typically send this feedback to your ML system
-    console.log('High confidence review:', { componentId, action, newCategory });
-    
-    // For now, we'll just mark it as reviewed
-    // In a real implementation, you'd update the database and retrain the model
+  const handleHighConfidenceReview = async (componentId: string, action: 'accept' | 'reject' | 'edit', newType?: string, newCategory?: string) => {
+    try {
+      if (action === 'accept') {
+        // Find the component to get its suggested categorization
+        const component = enhancedCategorization?.high_confidence_suggestions?.find((item: any) => item.component_id === componentId);
+        if (component) {
+          await updateComponentCategorization(componentId, component.suggested_type, component.suggested_category);
+        }
+      } else if (action === 'edit' && newType && newCategory) {
+        await updateComponentCategorization(componentId, newType, newCategory);
+      }
+      // For 'reject', we don't update the database - just mark as reviewed
+      
+      setReviewedItems(prev => new Set([...prev, componentId]));
+      console.log('High confidence review completed:', { componentId, action, newType, newCategory });
+    } catch (error) {
+      console.error('Error in high confidence review:', error);
+      alert('Failed to update component. Please try again.');
+    }
   };
 
-  const handleManualReviewCategorization = (componentId: string, category: string, confidence: number, notes?: string) => {
-    setReviewedItems(prev => new Set([...prev, componentId]));
-    
-    // Here you would typically update the component in the database
-    console.log('Manual review categorization:', { componentId, category, confidence, notes });
-    
-    // In a real implementation, you'd update the database
+  const handleManualReviewCategorization = async (componentId: string, type: string, category: string, confidence: number, notes?: string) => {
+    try {
+      await updateComponentCategorization(componentId, type, category);
+      setReviewedItems(prev => new Set([...prev, componentId]));
+      console.log('Manual review categorization completed:', { componentId, type, category, confidence, notes });
+    } catch (error) {
+      console.error('Error in manual review categorization:', error);
+      alert('Failed to update component. Please try again.');
+    }
   };
 
   const getFilteredManualReviewItems = () => {
@@ -197,6 +275,40 @@ export default function AdminPage() {
       
       return matchesFilter && matchesCategory;
     });
+  };
+
+  // Batch update function for efficiency
+  const handleBatchUpdate = async (updates: Array<{componentId: string, type: string, category: string}>) => {
+    setUpdating(true);
+    setUpdateProgress(0);
+    
+    try {
+      for (let i = 0; i < updates.length; i++) {
+        const update = updates[i];
+        await updateComponentCategorization(update.componentId, update.type, update.category);
+        setUpdateProgress(((i + 1) / updates.length) * 100);
+        
+        // Small delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // Refresh the analysis after batch update
+      await handleComponentAnalysis();
+      alert(`Successfully updated ${updates.length} components!`);
+    } catch (error) {
+      console.error('Batch update error:', error);
+      alert('Some updates failed. Please check the console for details.');
+    } finally {
+      setUpdating(false);
+      setUpdateProgress(0);
+    }
+  };
+
+  // Refresh function to reload data
+  const handleRefresh = async () => {
+    setLoading(true);
+    setReviewedItems(new Set());
+    await handleComponentAnalysis();
   };
 
   return (
@@ -290,7 +402,32 @@ export default function AdminPage() {
 
         {/* Action Buttons */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Data Management Actions</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-gray-800">Data Management Actions</h2>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh Data
+            </button>
+          </div>
+          
+          {updating && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-blue-800">Updating components...</span>
+                <span className="text-sm text-blue-600">{Math.round(updateProgress)}%</span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${updateProgress}%` }}></div>
+              </div>
+            </div>
+          )}
+          
           <div className="flex flex-wrap gap-4">
             <button
               onClick={handleComponentAnalysis}
@@ -395,14 +532,27 @@ export default function AdminPage() {
             </div>
             
             <div className="border-t pt-4">
-              <h4 className="font-semibold text-gray-800 mb-3">Category Breakdown:</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(enhancedCategorization.categorization_summary)
+              <h4 className="font-semibold text-gray-800 mb-3">Type Breakdown:</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {Object.entries(enhancedCategorization.categorization_summary.by_type)
                   .sort(([,a], [,b]) => Number(b) - Number(a))
-                  .map(([category, count]: [string, any]) => (
-                    <div key={category} className="bg-gray-50 p-3 rounded text-center">
-                      <div className="font-semibold text-gray-800">{category}</div>
+                  .map(([type, count]: [string, any]) => (
+                    <div key={type} className="bg-gray-50 p-3 rounded text-center">
+                      <div className="font-semibold text-gray-800">{type}</div>
                       <div className="text-sm text-gray-600">{count} components</div>
+                    </div>
+                  ))}
+              </div>
+              
+              <h4 className="font-semibold text-gray-800 mb-3">Sub-Category Breakdown:</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(enhancedCategorization.categorization_summary.by_category)
+                  .sort(([,a], [,b]) => Number(b) - Number(a))
+                  .slice(0, 12) // Show top 12 sub-categories
+                  .map(([category, count]: [string, any]) => (
+                    <div key={category} className="bg-blue-50 p-3 rounded text-center">
+                      <div className="font-semibold text-blue-800">{category}</div>
+                      <div className="text-sm text-blue-600">{count} components</div>
                     </div>
                   ))}
               </div>
@@ -432,8 +582,8 @@ export default function AdminPage() {
                           {item.make} {item.model}
                         </p>
                         <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-sm text-gray-500">Current: {item.current_type}</span>
-                          <span className="text-sm text-blue-600 font-medium">→ Suggested: {item.suggested_type}</span>
+                          <span className="text-sm text-gray-500">Current: {item.current_type} / {item.current_category}</span>
+                          <span className="text-sm text-blue-600 font-medium">→ Suggested: {item.suggested_type} / {item.suggested_category}</span>
                           <span className="text-sm text-green-600 font-medium">Confidence: {item.confidence}%</span>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>

@@ -350,67 +350,111 @@ export const analyzeComponentData = async (components: any[]) => {
   return analysis;
 };
 
-// Enhanced categorization with internet research capability
+// Enhanced categorization with proper hierarchy (component_type + component_category)
 export const enhancedCategorizeComponents = async (components: any[]) => {
-  console.log('Starting enhanced component categorization...');
+  console.log('Starting enhanced component categorization with hierarchy...');
   
-  // Enhanced categorization patterns with more specific keywords
+  // Enhanced categorization patterns with main types and sub-categories
   const enhancedPatterns = {
-    'Displays': {
-      patterns: ['display', 'tv', 'monitor', 'screen', 'panel', 'lcd', 'oled', 'led', 'projection', 'video wall', 'digital signage'],
-      examples: ['NEC Display', 'Samsung TV', 'LG Monitor', 'Video Wall Panel']
-    },
     'Audio': {
       patterns: ['speaker', 'audio', 'sound', 'mic', 'microphone', 'amplifier', 'mixer', 'processor', 'dsp', 'equalizer', 'crossover'],
-      examples: ['JBL Speaker', 'Shure Microphone', 'Crown Amplifier']
+      examples: ['JBL Speaker', 'Shure Microphone', 'Crown Amplifier'],
+      subCategories: {
+        'Speakers': ['speaker', 'loudspeaker', 'monitor', 'subwoofer', 'tweeter', 'woofer'],
+        'Microphones': ['mic', 'microphone', 'wireless mic', 'lavalier', 'headset mic'],
+        'Amplifiers': ['amplifier', 'amp', 'power amp', 'crown', 'qsc'],
+        'Mixers': ['mixer', 'audio mixer', 'digital mixer', 'analog mixer'],
+        'Processors': ['dsp', 'processor', 'equalizer', 'crossover', 'compressor', 'limiter'],
+        'Accessories': ['cable', 'connector', 'adapter', 'stand', 'mount']
+      }
+    },
+    'Video': {
+      patterns: ['camera', 'video', 'streaming', 'recording', 'capture', 'ptz', 'ip camera', 'webcam', 'display', 'tv', 'monitor', 'screen', 'panel', 'lcd', 'oled', 'led', 'projection', 'video wall', 'digital signage'],
+      examples: ['PTZ Camera', 'IP Camera', 'Samsung TV', 'LG Monitor'],
+      subCategories: {
+        'Displays': ['display', 'tv', 'monitor', 'screen', 'panel', 'lcd', 'oled', 'led', 'video wall', 'digital signage'],
+        'Projectors': ['projector', 'lens', 'projection', 'lumens', '4k', 'hd'],
+        'Cameras': ['camera', 'ptz', 'ip camera', 'webcam', 'surveillance'],
+        'Recorders': ['recorder', 'dvr', 'nvr', 'streaming', 'capture']
+      }
+    },
+    'Control': {
+      patterns: ['switch', 'matrix', 'controller', 'processor', 'dsp', 'control', 'automation', 'crestron', 'amx', 'extron'],
+      examples: ['Crestron Controller', 'Extron Matrix', 'AMX System'],
+      subCategories: {
+        'Controllers': ['controller', 'processor', 'automation', 'crestron', 'amx', 'extron'],
+        'Switches': ['switch', 'matrix', 'video switch', 'audio switch'],
+        'Touch Panels': ['touch', 'panel', 'interface', 'keypad'],
+        'Software': ['software', 'platform', 'management', 'app']
+      }
     },
     'Cabling': {
       patterns: ['cable', 'wire', 'connector', 'hdmi', 'vga', 'dvi', 'displayport', 'ethernet', 'fiber', 'cat6', 'cat7', 'patch'],
-      examples: ['HDMI Cable', 'Ethernet Cable', 'Fiber Optic']
+      examples: ['HDMI Cable', 'Ethernet Cable', 'Fiber Optic'],
+      subCategories: {
+        'Video Cables': ['hdmi', 'vga', 'dvi', 'displayport', 'component', 'composite'],
+        'Audio Cables': ['xlr', 'trs', 'rca', 'speakon', 'banana'],
+        'Network Cables': ['ethernet', 'cat6', 'cat7', 'fiber', 'patch'],
+        'Power Cables': ['power', 'ac', 'dc', 'adapter']
+      }
     },
     'Mounting': {
       patterns: ['mount', 'bracket', 'stand', 'support', 'holder', 'clamp', 'rail', 'ceiling', 'wall', 'floor'],
-      examples: ['Chief Mount', 'Wall Bracket', 'Ceiling Mount']
-    },
-    'Control Systems': {
-      patterns: ['switch', 'matrix', 'controller', 'processor', 'dsp', 'control', 'automation', 'crestron', 'amx', 'extron'],
-      examples: ['Crestron Controller', 'Extron Matrix', 'AMX System']
-    },
-    'Projection': {
-      patterns: ['projector', 'lens', 'screen', 'throw', 'distance', 'lumens', 'resolution', '4k', 'hd'],
-      examples: ['Epson Projector', 'Projection Screen', 'Projector Lens']
-    },
-    'Video': {
-      patterns: ['camera', 'video', 'streaming', 'recording', 'capture', 'ptz', 'ip camera', 'webcam'],
-      examples: ['PTZ Camera', 'IP Camera', 'Video Recorder']
-    },
-    'Lighting': {
-      patterns: ['light', 'led', 'lamp', 'illumination', 'ambient', 'dimmer', 'fixture', 'bulb'],
-      examples: ['LED Light', 'Dimmer Switch', 'Light Fixture']
-    },
-    'Processing': {
-      patterns: ['processor', 'dsp', 'amplifier', 'mixer', 'equalizer', 'crossover', 'audio processor', 'video processor'],
-      examples: ['Audio Processor', 'DSP Unit', 'Video Processor']
-    },
-    'Rack & Enclosures': {
-      patterns: ['rack', 'cabinet', 'enclosure', 'housing', 'case', 'chassis', 'server rack', 'equipment rack'],
-      examples: ['Server Rack', 'Equipment Cabinet', 'Rack Mount']
+      examples: ['Chief Mount', 'Wall Bracket', 'Ceiling Mount'],
+      subCategories: {
+        'Wall Mounts': ['wall mount', 'bracket', 'arm'],
+        'Ceiling Mounts': ['ceiling mount', 'drop mount'],
+        'Floor Stands': ['floor stand', 'tripod', 'base'],
+        'Rack Mounts': ['rack mount', 'rack ears', 'chassis']
+      }
     },
     'Network': {
       patterns: ['switch', 'router', 'ethernet', 'wifi', 'network', 'poe', 'wireless', 'access point', 'firewall'],
-      examples: ['Network Switch', 'WiFi Router', 'Access Point']
+      examples: ['Network Switch', 'WiFi Router', 'Access Point'],
+      subCategories: {
+        'Switches': ['switch', 'poe switch', 'managed switch'],
+        'Routers': ['router', 'gateway', 'firewall'],
+        'Wireless': ['wifi', 'wireless', 'access point', 'repeater'],
+        'Network Tools': ['tester', 'crimper', 'analyzer']
+      }
     },
     'Power': {
       patterns: ['power', 'supply', 'ups', 'battery', 'adapter', 'transformer', 'pdu', 'power distribution'],
-      examples: ['UPS System', 'Power Supply', 'PDU Unit']
+      examples: ['UPS System', 'Power Supply', 'PDU Unit'],
+      subCategories: {
+        'UPS Systems': ['ups', 'uninterruptible', 'battery backup'],
+        'Power Supplies': ['power supply', 'adapter', 'transformer'],
+        'PDUs': ['pdu', 'power distribution', 'rack pdu'],
+        'Batteries': ['battery', 'backup', 'rechargeable']
+      }
     },
-    'Software': {
-      patterns: ['software', 'license', 'subscription', 'app', 'application', 'platform', 'management'],
-      examples: ['Software License', 'Management Platform', 'Application']
+    'Lighting': {
+      patterns: ['light', 'led', 'lamp', 'illumination', 'ambient', 'dimmer', 'fixture', 'bulb'],
+      examples: ['LED Light', 'Dimmer Switch', 'Light Fixture'],
+      subCategories: {
+        'LED Lights': ['led', 'light', 'fixture', 'strip'],
+        'Controls': ['dimmer', 'switch', 'controller'],
+        'Accessories': ['bulb', 'lamp', 'holder']
+      }
+    },
+    'Rack & Enclosures': {
+      patterns: ['rack', 'cabinet', 'enclosure', 'housing', 'case', 'chassis', 'server rack', 'equipment rack'],
+      examples: ['Server Rack', 'Equipment Cabinet', 'Rack Mount'],
+      subCategories: {
+        'Racks': ['rack', 'cabinet', 'server rack', 'equipment rack'],
+        'Enclosures': ['enclosure', 'housing', 'case', 'chassis'],
+        'Accessories': ['shelf', 'bracket', 'fans', 'cable management']
+      }
     },
     'Tools & Accessories': {
       patterns: ['tool', 'accessory', 'adapter', 'converter', 'splitter', 'extender', 'repeater'],
-      examples: ['HDMI Splitter', 'Adapter', 'Extension Cable']
+      examples: ['HDMI Splitter', 'Adapter', 'Extension Cable'],
+      subCategories: {
+        'Adapters': ['adapter', 'converter', 'transcoder'],
+        'Splitters': ['splitter', 'distribution', 'multiviewer'],
+        'Extenders': ['extender', 'repeater', 'booster'],
+        'Tools': ['tool', 'tester', 'crimper', 'screwdriver']
+      }
     }
   };
 
@@ -419,35 +463,55 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     const make = (component.make || '').toLowerCase();
     const model = (component.model || '').toLowerCase();
     
-    let bestMatch = 'Uncategorized';
+    let bestMainType = 'Uncategorized';
+    let bestSubCategory = 'Uncategorized';
     let bestScore = 0;
     let reasoning = '';
 
     // Enhanced matching using multiple fields
-    Object.entries(enhancedPatterns).forEach(([category, config]) => {
-      let score = 0;
+    Object.entries(enhancedPatterns).forEach(([mainType, config]) => {
+      let mainTypeScore = 0;
+      let subCategoryScores: { [key: string]: number } = {};
       
-      // Check description
+      // Check main type patterns
       config.patterns.forEach(pattern => {
-        if (description.includes(pattern)) score += 2;
-        if (make.includes(pattern)) score += 1;
-        if (model.includes(pattern)) score += 1;
+        if (description.includes(pattern)) mainTypeScore += 2;
+        if (make.includes(pattern)) mainTypeScore += 1;
+        if (model.includes(pattern)) mainTypeScore += 1;
+      });
+      
+      // Check sub-category patterns
+      Object.entries(config.subCategories).forEach(([subCategory, patterns]) => {
+        let subScore = 0;
+        patterns.forEach(pattern => {
+          if (description.includes(pattern)) subScore += 3;
+          if (make.includes(pattern)) subScore += 2;
+          if (model.includes(pattern)) subScore += 2;
+        });
+        subCategoryScores[subCategory] = subScore;
       });
       
       // Check for brand-specific patterns
-      if (category === 'Control Systems' && (make.includes('crestron') || make.includes('amx') || make.includes('extron'))) {
-        score += 5;
+      if (mainType === 'Control' && (make.includes('crestron') || make.includes('amx') || make.includes('extron'))) {
+        mainTypeScore += 5;
       }
-      if (category === 'Mounting' && (make.includes('chief') || make.includes('peerless'))) {
-        score += 3;
+      if (mainType === 'Mounting' && (make.includes('chief') || make.includes('peerless'))) {
+        mainTypeScore += 3;
       }
-      if (category === 'Audio' && (make.includes('jbl') || make.includes('shure') || make.includes('crown'))) {
-        score += 3;
+      if (mainType === 'Audio' && (make.includes('jbl') || make.includes('shure') || make.includes('crown'))) {
+        mainTypeScore += 3;
       }
       
-      if (score > bestScore) {
-        bestScore = score;
-        bestMatch = category;
+      if (mainTypeScore > bestScore) {
+        bestScore = mainTypeScore;
+        bestMainType = mainType;
+        
+        // Find best sub-category
+        const bestSub = Object.entries(subCategoryScores).reduce((best, [sub, score]) => 
+          score > best.score ? { sub, score } : best, { sub: 'Uncategorized', score: 0 }
+        );
+        bestSubCategory = bestSub.sub;
+        
         reasoning = `Matched ${config.patterns.filter(p => 
           description.includes(p) || make.includes(p) || model.includes(p)
         ).join(', ')}`;
@@ -457,8 +521,10 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     return {
       component_id: component.id,
       current_type: component.component_type || 'Uncategorized',
-      suggested_type: bestMatch,
-      confidence: Math.min(bestScore * 10, 100),
+      current_category: component.component_category || 'Uncategorized',
+      suggested_type: bestMainType,
+      suggested_category: bestSubCategory,
+      confidence: Math.min(bestScore * 8, 100),
       description: component.description,
       make: component.make,
       model: component.model,
@@ -467,7 +533,7 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     };
   });
 
-  // Filter high-confidence suggestions
+  // Filter high-confidence suggestions (both type and category)
   const highConfidenceSuggestions = categorizationResults.filter(s => s.confidence >= 60);
   const needsManualReview = categorizationResults.filter(s => s.needs_manual_review);
 
@@ -478,11 +544,21 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     categorization_results: categorizationResults,
     high_confidence_suggestions: highConfidenceSuggestions,
     needs_manual_review: needsManualReview,
-    categorization_summary: Object.fromEntries(
-      Object.entries(enhancedPatterns).map(([category, config]) => [
-        category, 
-        categorizationResults.filter(r => r.suggested_type === category).length
-      ])
-    )
+    categorization_summary: {
+      by_type: Object.fromEntries(
+        Object.keys(enhancedPatterns).map(type => [
+          type, 
+          categorizationResults.filter(r => r.suggested_type === type).length
+        ])
+      ),
+      by_category: Object.fromEntries(
+        Object.values(enhancedPatterns).flatMap(config => 
+          Object.keys(config.subCategories)
+        ).map(category => [
+          category,
+          categorizationResults.filter(r => r.suggested_category === category).length
+        ])
+      )
+    }
   };
 }; 
