@@ -37,6 +37,9 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
     'Lighting', 'Rack & Enclosures', 'Tools & Accessories', 'Uncategorized', 'Custom'
   ];
 
+  const [customType, setCustomType] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+
   const getSubCategories = (type: string) => {
     const subCategoriesMap: { [key: string]: string[] } = {
       'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
@@ -57,7 +60,29 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
   };
 
   const handleSubmit = () => {
-    onCategorize(item.component_id, selectedType, selectedCategory, confidence, notes);
+    // Get the final values from either dropdown or direct text input
+    let finalType = selectedType;
+    let finalCategory = selectedCategory;
+    
+    // If type is Custom, use the custom text input value
+    if (selectedType === 'Custom') {
+      finalType = customType.trim();
+      if (!finalType) {
+        alert('Please enter a type');
+        return;
+      }
+    }
+    
+    // If category is Custom, use the custom text input value
+    if (selectedCategory === 'Custom') {
+      finalCategory = customCategory.trim();
+      if (!finalCategory) {
+        alert('Please enter a category');
+        return;
+      }
+    }
+    
+    onCategorize(item.component_id, finalType, finalCategory, confidence, notes);
     setShowForm(false);
   };
 
@@ -116,6 +141,70 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Custom Type Input */}
+          {selectedType === 'Custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Type</label>
+              <input
+                type="text"
+                placeholder="Enter custom type..."
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          {/* Custom Category Input */}
+          {selectedCategory === 'Custom' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Category</label>
+              <input
+                type="text"
+                placeholder="Enter custom category..."
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          {/* Direct Text Input for Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Type (Main Category) - Or enter custom text
+            </label>
+            <input
+              type="text"
+              placeholder="Enter type or select from dropdown above..."
+              value={selectedType === 'Custom' ? customType : selectedType}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSelectedType('Custom');
+                setCustomType(value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Direct Text Input for Category */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Category (Sub-Category) - Or enter custom text
+            </label>
+            <input
+              type="text"
+              placeholder="Enter category or select from dropdown above..."
+              value={selectedCategory === 'Custom' ? customCategory : selectedCategory}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSelectedCategory('Custom');
+                setCustomCategory(value);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -851,6 +940,48 @@ export default function AdminPage() {
                     />
                   </div>
                 )}
+
+                {/* Direct Text Input for Type (Alternative to dropdown) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type (Main Category) - Or enter custom text
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter type or select from dropdown above..."
+                    value={editModal.newType === 'Custom' ? editModal.customType : editModal.newType}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditModal({
+                        ...editModal,
+                        newType: 'Custom',
+                        customType: value
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Direct Text Input for Category (Alternative to dropdown) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Category (Sub-Category) - Or enter custom text
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter category or select from dropdown above..."
+                    value={editModal.newCategory === 'Custom' ? editModal.customCategory : editModal.newCategory}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setEditModal({
+                        ...editModal,
+                        newCategory: 'Custom',
+                        customCategory: value
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -862,18 +993,26 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    // Use custom values if provided, otherwise use selected values
-                    const finalType = editModal.newType === 'Custom' ? editModal.customType : editModal.newType;
-                    const finalCategory = editModal.newCategory === 'Custom' ? editModal.customCategory : editModal.newCategory;
+                    // Get the final values from either dropdown or direct text input
+                    let finalType = editModal.newType;
+                    let finalCategory = editModal.newCategory;
                     
-                    if (editModal.newType === 'Custom' && !editModal.customType.trim()) {
-                      alert('Please enter a custom type');
-                      return;
+                    // If type is Custom, use the custom text input value
+                    if (editModal.newType === 'Custom') {
+                      finalType = editModal.customType.trim();
+                      if (!finalType) {
+                        alert('Please enter a type');
+                        return;
+                      }
                     }
                     
-                    if (editModal.newCategory === 'Custom' && !editModal.customCategory.trim()) {
-                      alert('Please enter a custom category');
-                      return;
+                    // If category is Custom, use the custom text input value
+                    if (editModal.newCategory === 'Custom') {
+                      finalCategory = editModal.customCategory.trim();
+                      if (!finalCategory) {
+                        alert('Please enter a category');
+                        return;
+                      }
                     }
                     
                     await handleHighConfidenceReview(
