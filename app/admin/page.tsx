@@ -7,6 +7,7 @@ import {
   analyzeComponentData, 
   enhancedCategorizeComponentsWithLearning, 
   recategorizeWithLearning, 
+  autoApplyLearnedSuggestions,
   storeLearningFeedback, 
   getLearningStats,
   mlModel,
@@ -304,19 +305,21 @@ export default function AdminPage() {
     setRecategorizing(true);
     try {
       const avComponents = await fetchAllPages('/av-components');
-      const results = await recategorizeWithLearning(avComponents);
+      const results = await autoApplyLearnedSuggestions(avComponents);
       setRecategorizationResults(results);
-      console.log('Re-categorization with learning completed:', results);
+      console.log('Auto-application with learning completed:', results);
       
       // Show success message
-      if (results.recategorized_count > 0) {
-        alert(`Successfully generated ${results.recategorized_count} new suggestions using learned patterns!`);
+      if (results.applied_count && results.applied_count > 0) {
+        alert(`✅ Successfully applied ${results.applied_count} suggestions to database! The components have been updated.`);
+        // Refresh the data to show updated components
+        await handleRefresh();
       } else {
-        alert('No new suggestions generated. Try providing more feedback first.');
+        alert(results.message || 'No suggestions to apply.');
       }
     } catch (error) {
-      console.error('Re-categorization error:', error);
-      setError('Failed to re-categorize with learning. Please try again.');
+      console.error('Auto-application error:', error);
+      setError('Failed to apply suggestions. Please try again.');
     } finally {
       setRecategorizing(false);
     }
@@ -587,7 +590,7 @@ export default function AdminPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span className="font-medium text-gray-900">Apply Learning</span>
-              <span className="text-sm text-gray-500">Re-categorize</span>
+              <span className="text-sm text-gray-500">Auto-apply suggestions</span>
             </button>
 
             <button

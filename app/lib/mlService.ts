@@ -1070,5 +1070,76 @@ export const recategorizeWithLearning = async (components: any[]) => {
   };
 };
 
+// Auto-apply learned suggestions to database
+export const autoApplyLearnedSuggestions = async (components: any[]) => {
+  console.log('Auto-applying learned suggestions to database...');
+  
+  // Get suggestions first
+  const results = await recategorizeWithLearning(components);
+  
+  if (results.new_suggestions.length === 0) {
+    return {
+      ...results,
+      applied_count: 0,
+      applied_suggestions: [],
+      message: 'No suggestions to apply.'
+    };
+  }
+  
+  // Apply suggestions to database
+  const appliedSuggestions = [];
+  let appliedCount = 0;
+  
+  for (const suggestion of results.new_suggestions) {
+    try {
+      // Update component in database
+      const response = await fetch(`https://backend.sandyy.dev/api/av-components/${suggestion.component_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            component_type: suggestion.suggested_type,
+            component_category: suggestion.suggested_category
+          }
+        })
+      });
+      
+      if (response.ok) {
+        appliedCount++;
+        appliedSuggestions.push({
+          ...suggestion,
+          status: 'applied'
+        });
+        console.log(`✅ Applied suggestion for component ${suggestion.component_id}: ${suggestion.suggested_type} > ${suggestion.suggested_category}`);
+      } else {
+        console.error(`❌ Failed to apply suggestion for component ${suggestion.component_id}:`, response.statusText);
+        appliedSuggestions.push({
+          ...suggestion,
+          status: 'failed',
+          error: response.statusText
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Error applying suggestion for component ${suggestion.component_id}:`, error);
+      appliedSuggestions.push({
+        ...suggestion,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+  
+  console.log(`Applied ${appliedCount} out of ${results.new_suggestions.length} suggestions`);
+  
+  return {
+    ...results,
+    applied_count: appliedCount,
+    applied_suggestions: appliedSuggestions,
+    message: `Successfully applied ${appliedCount} suggestions to database!`
+  };
+};
+
 // Export MLService instance
 export const mlService = new MLService(); 
