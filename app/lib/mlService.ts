@@ -1020,8 +1020,16 @@ export const analyzeComponentData = async (components: any[]) => {
   
   const analysis = {
     total_components: components.length,
-    categorized_components: components.filter(c => c.component_type && c.component_type !== 'Uncategorized').length,
-    uncategorized_components: components.filter(c => !c.component_type || c.component_type === 'Uncategorized').length,
+    categorized_components: components.filter(c => {
+      const hasType = c.component_type && c.component_type !== 'Uncategorized' && c.component_type !== 'AV Equipment';
+      const hasCategory = c.component_category && c.component_category !== 'Uncategorized' && c.component_category !== 'AV Equipment';
+      return hasType && hasCategory;
+    }).length,
+    uncategorized_components: components.filter(c => {
+      const hasType = c.component_type && c.component_type !== 'Uncategorized' && c.component_type !== 'AV Equipment';
+      const hasCategory = c.component_category && c.component_category !== 'Uncategorized' && c.component_category !== 'AV Equipment';
+      return !hasType || !hasCategory;
+    }).length,
     type_distribution: {} as { [key: string]: number },
     category_distribution: {} as { [key: string]: number },
     brand_distribution: {} as { [key: string]: number },
@@ -1081,16 +1089,23 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
   
   return {
     categorized_components: results.length,
-    high_confidence_suggestions: results.filter(r => r.confidence > 70),
+    high_confidence_suggestions: results.filter(r => {
+      // Show high confidence suggestions that are different from current categorization
+      const isDifferent = r.current_type !== r.suggested_type || r.current_category !== r.suggested_category;
+      const isHighConfidence = r.confidence > 60; // Lowered from 70 to be more permissive
+      const isValidSuggestion = r.suggested_type !== 'Uncategorized' && r.suggested_category !== 'Uncategorized';
+      
+      return isHighConfidence && isDifferent && isValidSuggestion;
+    }),
     low_confidence_suggestions: results.filter(r => r.confidence <= 70),
-    needs_manual_review: components.filter(comp => 
-      !comp.component_type || 
-      comp.component_type === 'Uncategorized' || 
-      comp.component_type === 'AV Equipment' ||
-      !comp.component_category ||
-      comp.component_category === 'Uncategorized' ||
-      comp.component_category === 'AV Equipment'
-    ),
+    needs_manual_review: components.filter(comp => {
+      // Only include components that are truly uncategorized or have generic categories
+      const hasType = comp.component_type && comp.component_type !== 'Uncategorized' && comp.component_type !== 'AV Equipment';
+      const hasCategory = comp.component_category && comp.component_category !== 'Uncategorized' && comp.component_category !== 'AV Equipment';
+      
+      // Only put in manual review if BOTH type and category are missing or generic
+      return !hasType || !hasCategory;
+    }),
     model_version: supervisedModel.getModelInfo()?.version || '1.0.0',
     model_performance: supervisedModel.getModelInfo()?.performance || null
   };
@@ -1147,17 +1162,18 @@ export const recategorizeWithLearning = async (components: any[]) => {
   supervisedModel.forceRetrain();
   
   // Get all components that could benefit from learning
-  const componentsToAnalyze = components.filter(comp => 
-    !comp.component_type || 
-    comp.component_type === 'Uncategorized' || 
-    comp.component_type === 'AV Equipment' ||
-    !comp.component_category ||
-    comp.component_category === 'Uncategorized' ||
-    comp.component_category === 'AV Equipment' ||
-    // Also include components with low confidence or generic categories
-    comp.component_category === 'Other Equipment' ||
-    comp.component_category === 'Miscellaneous'
-  );
+  const componentsToAnalyze = components.filter(comp => {
+    const hasType = comp.component_type && comp.component_type !== 'Uncategorized' && comp.component_type !== 'AV Equipment';
+    const hasCategory = comp.component_category && comp.component_category !== 'Uncategorized' && comp.component_category !== 'AV Equipment';
+    
+    // Include components that are missing either type or category, or have generic categories
+    // Also include components with low confidence or generic categories that could be improved
+    return !hasType || !hasCategory || 
+           comp.component_category === 'Other Equipment' ||
+           comp.component_category === 'Miscellaneous' ||
+           comp.component_category === 'AV Equipment' ||
+           comp.component_type === 'AV Equipment';
+  });
   
   console.log(`Found ${componentsToAnalyze.length} components to analyze with learned patterns`);
   
