@@ -368,6 +368,10 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
   
   console.log(`Found ${correctedComponents.size} previously corrected components to skip`);
   
+  // Get dynamic patterns from user feedback
+  const dynamicPatterns = getDynamicPatterns();
+  console.log('Dynamic patterns from user feedback:', dynamicPatterns);
+  
   // Enhanced categorization patterns with main types and sub-categories
   const enhancedPatterns = {
     'Audio': {
@@ -567,6 +571,40 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
         mainTypeScore += 3;
       }
       
+      // Apply dynamic patterns from user feedback
+      if (dynamicPatterns && dynamicPatterns[mainType]) {
+        const userPatterns = dynamicPatterns[mainType];
+        
+        // Check user-learned patterns
+        if (userPatterns.newPatterns) {
+          userPatterns.newPatterns.forEach((pattern: string) => {
+            if (description.includes(pattern)) mainTypeScore += 3; // Higher weight for user-learned patterns
+            if (make.includes(pattern)) mainTypeScore += 2;
+            if (model.includes(pattern)) mainTypeScore += 2;
+          });
+        }
+        
+        // Check user-learned brand patterns
+        if (userPatterns.brandPatterns) {
+          userPatterns.brandPatterns.forEach((brand: string) => {
+            if (make.includes(brand)) mainTypeScore += 4; // High weight for user-learned brands
+          });
+        }
+        
+        // Check user-learned sub-category patterns
+        if (userPatterns.newSubCategories) {
+          Object.entries(userPatterns.newSubCategories).forEach(([subCategory, patterns]) => {
+            let subScore = 0;
+            (patterns as string[]).forEach((pattern: string) => {
+              if (description.includes(pattern)) subScore += 4; // Higher weight for user-learned patterns
+              if (make.includes(pattern)) subScore += 3;
+              if (model.includes(pattern)) subScore += 3;
+            });
+            subCategoryScores[subCategory] = (subCategoryScores[subCategory] || 0) + subScore;
+          });
+        }
+      }
+      
       if (mainTypeScore > bestScore) {
         bestScore = mainTypeScore;
         bestMainType = mainType;
@@ -580,6 +618,24 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
         reasoning = `Matched ${config.patterns.filter(p => 
           description.includes(p) || make.includes(p) || model.includes(p)
         ).join(', ')}`;
+        
+        // Add user-learned patterns to reasoning
+        if (dynamicPatterns && dynamicPatterns[mainType]) {
+          const userPatterns = dynamicPatterns[mainType];
+          const learnedPatterns: string[] = [];
+          
+          if (userPatterns.newPatterns) {
+            userPatterns.newPatterns.forEach((pattern: string) => {
+              if (description.includes(pattern) || make.includes(pattern) || model.includes(pattern)) {
+                learnedPatterns.push(pattern);
+              }
+            });
+          }
+          
+          if (learnedPatterns.length > 0) {
+            reasoning += ` + learned patterns: ${learnedPatterns.join(', ')}`;
+          }
+        }
       }
     });
 
@@ -758,14 +814,28 @@ const analyzeFeedbackForPatterns = (feedback: LearningFeedback[]) => {
 
 // Apply pattern improvements to the enhanced patterns
 const applyPatternImprovements = (improvements: any) => {
-  // This function would update the enhancedPatterns object
-  // For now, we'll log the improvements and they can be manually integrated
   console.log('Pattern improvements to apply:', improvements);
   
-  // In a production system, you might:
-  // 1. Store these improvements in a database
-  // 2. Use them to retrain the ML model
-  // 3. Update the pattern matching logic
+  // Store improvements in localStorage for dynamic application
+  try {
+    localStorage.setItem('ml_pattern_improvements', JSON.stringify(improvements));
+    console.log('Pattern improvements stored for dynamic application');
+  } catch (error) {
+    console.error('Error storing pattern improvements:', error);
+  }
+};
+
+// Get dynamic patterns that include user feedback
+const getDynamicPatterns = () => {
+  try {
+    const storedImprovements = localStorage.getItem('ml_pattern_improvements');
+    if (!storedImprovements) return null;
+    
+    return JSON.parse(storedImprovements);
+  } catch (error) {
+    console.error('Error loading dynamic patterns:', error);
+    return null;
+  }
 };
 
 // Get learning statistics
@@ -826,5 +896,43 @@ export const enhancedCategorizeComponentsWithLearning = async (components: any[]
     learningStats,
     modelVersion: '1.1', // Increment version when patterns are updated
     lastTraining: new Date().toISOString()
+  };
+};
+
+// Re-categorize uncategorized components with learned patterns
+export const recategorizeWithLearning = async (components: any[]) => {
+  console.log('Re-categorizing uncategorized components with learned patterns...');
+  
+  // Get only uncategorized components
+  const uncategorizedComponents = components.filter(comp => 
+    !comp.component_type || 
+    comp.component_type === 'Uncategorized' || 
+    comp.component_type === 'AV Equipment' ||
+    !comp.component_category ||
+    comp.component_category === 'Uncategorized' ||
+    comp.component_category === 'AV Equipment'
+  );
+  
+  console.log(`Found ${uncategorizedComponents.length} uncategorized components to re-categorize`);
+  
+  // Apply enhanced categorization with learning
+  const results = await enhancedCategorizeComponentsWithLearning(uncategorizedComponents);
+  
+  // Filter for new high-confidence suggestions
+  const newSuggestions = results.high_confidence_suggestions.filter(suggestion => {
+    const component = components.find(c => (c.documentId || c.id) === suggestion.component_id);
+    return component && (
+      !component.component_type || 
+      component.component_type === 'Uncategorized' || 
+      component.component_type === 'AV Equipment'
+    );
+  });
+  
+  console.log(`Generated ${newSuggestions.length} new suggestions using learned patterns`);
+  
+  return {
+    ...results,
+    new_suggestions: newSuggestions,
+    recategorized_count: newSuggestions.length
   };
 }; 

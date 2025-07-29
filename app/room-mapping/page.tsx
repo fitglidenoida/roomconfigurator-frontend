@@ -48,7 +48,7 @@ export default function RoomMappingPage() {
   const [showOtherRegions, setShowOtherRegions] = useState(false);
   const [mappingProgress, setMappingProgress] = useState(0);
   const [projectCurrency, setProjectCurrency] = useState<string>('USD');
-  const [selectedRoomsForComparison, setSelectedRoomsForComparison] = useState<string[]>([]);
+  const [selectedRoomTypesForComparison, setSelectedRoomTypesForComparison] = useState<string[]>([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const pathname = usePathname();
 
@@ -309,32 +309,27 @@ export default function RoomMappingPage() {
     window.location.href = '/room-configuration';
   };
 
-  // Room comparison functions
-  const handleRoomSelectionForComparison = (srmRoomId: string) => {
-    setSelectedRoomsForComparison(prev => {
-      if (prev.includes(srmRoomId)) {
-        return prev.filter(id => id !== srmRoomId);
+  // Room type comparison functions
+  const handleRoomTypeSelectionForComparison = (roomTypeId: string) => {
+    setSelectedRoomTypesForComparison(prev => {
+      if (prev.includes(roomTypeId)) {
+        return prev.filter(id => id !== roomTypeId);
       } else if (prev.length < 3) {
-        return [...prev, srmRoomId];
+        return [...prev, roomTypeId];
       }
       return prev;
     });
   };
 
-  const clearRoomSelection = () => {
-    setSelectedRoomsForComparison([]);
+  const clearRoomTypeSelection = () => {
+    setSelectedRoomTypesForComparison([]);
   };
 
-  const getSelectedRoomsData = () => {
-    return selectedRoomsForComparison.map(srmRoomId => {
-      const srmRoom = srmRooms.find(room => room.id === srmRoomId);
-      const mapping = roomMappings.find(m => m.srm_room_id === srmRoomId);
-      return {
-        srmRoom,
-        mapping,
-        selectedRoomType: mapping?.selected_room_type
-      };
-    }).filter(data => data.srmRoom);
+  const getSelectedRoomTypesData = () => {
+    return selectedRoomTypesForComparison.map(roomTypeId => {
+      const roomType = existingRoomTypes.find(rt => rt.id.toString() === roomTypeId);
+      return roomType;
+    }).filter(Boolean);
   };
 
   return (
@@ -576,16 +571,7 @@ export default function RoomMappingPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedRoomsForComparison.includes(room.id)}
-                              onChange={() => handleRoomSelectionForComparison(room.id)}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              disabled={selectedRoomsForComparison.length >= 3 && !selectedRoomsForComparison.includes(room.id)}
-                            />
-                            <h4 className="font-medium text-gray-900">{room.room_name}</h4>
-                          </div>
+                          <h4 className="font-medium text-gray-900">{room.room_name}</h4>
                           <p className="text-sm text-gray-600 mt-1">{room.description}</p>
                           <div className="flex items-center space-x-4 mt-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -723,7 +709,16 @@ export default function RoomMappingPage() {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{roomType.name}</h4>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedRoomTypesForComparison.includes(roomType.id.toString())}
+                            onChange={() => handleRoomTypeSelectionForComparison(roomType.id.toString())}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            disabled={selectedRoomTypesForComparison.length >= 3 && !selectedRoomTypesForComparison.includes(roomType.id.toString())}
+                          />
+                          <h4 className="font-medium text-gray-900">{roomType.name}</h4>
+                        </div>
                         <p className="text-sm text-gray-600 mt-1">
                           Type: {roomType.room_type} • {roomType.sub_type}
                         </p>
@@ -859,21 +854,21 @@ export default function RoomMappingPage() {
           </ul>
         </div>
 
-        {/* Room Comparison Controls */}
-        {selectedRoomsForComparison.length > 0 && (
+        {/* Room Type Comparison Controls */}
+        {selectedRoomTypesForComparison.length > 0 && (
           <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-green-900">
-                  Room Comparison ({selectedRoomsForComparison.length}/3 selected)
+                  Room Type Comparison ({selectedRoomTypesForComparison.length}/3 selected)
                 </h3>
                 <p className="text-sm text-green-700 mt-1">
-                  Compare selected rooms to see detailed breakdowns and configurations
+                  Compare selected room types to see detailed specifications and configurations
                 </p>
               </div>
               <div className="flex space-x-3">
                 <button
-                  onClick={clearRoomSelection}
+                  onClick={clearRoomTypeSelection}
                   className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                 >
                   Clear Selection
@@ -904,62 +899,42 @@ export default function RoomMappingPage() {
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {getSelectedRoomsData().map((roomData, index) => (
+                  {getSelectedRoomTypesData().map((roomType, index) => (
                     <div key={index} className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-3">{roomData.srmRoom?.room_name}</h4>
+                      <h4 className="font-semibold text-gray-800 mb-3">{roomType?.name}</h4>
                       
-                      {/* SRM Room Details */}
+                      {/* Room Type Details */}
                       <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">SRM Details</h5>
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Room Type Specifications</h5>
                         <div className="space-y-1 text-sm text-gray-600">
-                          <div>Type: {roomData.srmRoom?.space_type}</div>
-                          <div>Count: {roomData.srmRoom?.count} units</div>
-                          <div>Category: {roomData.srmRoom?.category}</div>
-                          {roomData.srmRoom?.description && (
-                            <div>Description: {roomData.srmRoom.description}</div>
-                          )}
+                          <div>Type: {roomType?.room_type}</div>
+                          <div>Sub-type: {roomType?.sub_type}</div>
+                          <div>Category: {roomType?.category}</div>
+                          <div>Default PAX: {roomType?.default_pax} people</div>
+                          <div>Configurable: {roomType?.is_configurable ? 'Yes' : 'No'}</div>
                         </div>
                       </div>
 
-                      {/* Mapping Status */}
+                      {/* Location Details */}
                       <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">Mapping Status</h5>
-                        <div className="text-sm">
-                          {roomData.mapping?.status === 'mapped' ? (
-                            <div className="text-green-600">
-                              ✓ Mapped to: {roomData.selectedRoomType?.name}
-                            </div>
-                          ) : roomData.mapping?.status === 'new_room' ? (
-                            <div className="text-blue-600">
-                              ✨ New Room: {roomData.mapping?.new_room_name}
-                            </div>
-                          ) : roomData.mapping?.status === 'skipped' ? (
-                            <div className="text-gray-600">
-                              ⏭️ Skipped: {roomData.mapping?.skip_reason}
-                            </div>
-                          ) : (
-                            <div className="text-yellow-600">
-                              ⏳ Unmapped
-                            </div>
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Location</h5>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <div>Region: {roomType?.region}</div>
+                          <div>Country: {roomType?.country}</div>
+                          {roomType?.region !== selectedRegion && (
+                            <div className="text-orange-600">⚠️ Different region from project</div>
                           )}
                         </div>
                       </div>
 
-                      {/* Selected Room Type Details */}
-                      {roomData.selectedRoomType && (
-                        <div>
-                          <h5 className="text-sm font-medium text-gray-700 mb-2">Selected Room Type</h5>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div>Name: {roomData.selectedRoomType.name}</div>
-                            <div>Type: {roomData.selectedRoomType.room_type}</div>
-                            <div>Sub-type: {roomData.selectedRoomType.sub_type}</div>
-                            <div>Region: {roomData.selectedRoomType.region}</div>
-                            <div>Country: {roomData.selectedRoomType.country}</div>
-                            <div>Default PAX: {roomData.selectedRoomType.default_pax}</div>
-                            <div>Configurable: {roomData.selectedRoomType.is_configurable ? 'Yes' : 'No'}</div>
-                          </div>
+                      {/* Usage Statistics */}
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Usage in Current Project</h5>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <div>Total Mapped: {roomMappings.filter(r => r.selected_room_type?.id === roomType?.id).length}</div>
+                          <div>Total SRM Rooms: {srmRooms.length}</div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -969,25 +944,23 @@ export default function RoomMappingPage() {
                   <h4 className="font-semibold text-blue-900 mb-2">Comparison Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="font-medium text-blue-800">Total Rooms</div>
-                      <div className="text-blue-600">{getSelectedRoomsData().length}</div>
+                      <div className="font-medium text-blue-800">Total Room Types</div>
+                      <div className="text-blue-600">{getSelectedRoomTypesData().length}</div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Mapped</div>
-                      <div className="text-green-600">
-                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'mapped').length}
-                      </div>
+                      <div className="font-medium text-blue-800">Total SRM Rooms</div>
+                      <div className="text-green-600">{srmRooms.length}</div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">New Rooms</div>
+                      <div className="font-medium text-blue-800">Mapped Rooms</div>
                       <div className="text-blue-600">
-                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'new_room').length}
+                        {roomMappings.filter(r => r.status === 'mapped').length}
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Unmapped</div>
+                      <div className="font-medium text-blue-800">Unmapped Rooms</div>
                       <div className="text-yellow-600">
-                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'unmapped').length}
+                        {roomMappings.filter(r => r.status === 'unmapped').length}
                       </div>
                     </div>
                   </div>

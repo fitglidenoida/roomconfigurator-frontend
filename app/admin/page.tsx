@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAllPages, apiService } from '../lib/api';
-import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning } from '../lib/mlService';
+import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning, recategorizeWithLearning } from '../lib/mlService';
 
 // API function to update component categorization
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
@@ -266,6 +266,8 @@ export default function AdminPage() {
   const [updateProgress, setUpdateProgress] = useState(0);
   const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string, customType: string, customCategory: string} | null>(null);
   const [learningStats, setLearningStats] = useState<any>(null);
+  const [recategorizationResults, setRecategorizationResults] = useState<any>(null);
+  const [recategorizing, setRecategorizing] = useState(false);
 
   useEffect(() => {
     // Auto-run analysis on page load
@@ -317,6 +319,29 @@ export default function AdminPage() {
       setError('Failed to run ML training. Please try again.');
     } finally {
       setMlTrainingLoading(false);
+    }
+  };
+
+  // Re-categorize with learned patterns
+  const handleRecategorizeWithLearning = async () => {
+    setRecategorizing(true);
+    try {
+      const avComponents = await fetchAllPages('/av-components');
+      const results = await recategorizeWithLearning(avComponents);
+      setRecategorizationResults(results);
+      console.log('Re-categorization with learning completed:', results);
+      
+      // Show success message
+      if (results.recategorized_count > 0) {
+        alert(`Successfully generated ${results.recategorized_count} new suggestions using learned patterns!`);
+      } else {
+        alert('No new suggestions generated. Try providing more feedback first.');
+      }
+    } catch (error) {
+      console.error('Re-categorization error:', error);
+      setError('Failed to re-categorize with learning. Please try again.');
+    } finally {
+      setRecategorizing(false);
     }
   };
 
@@ -634,6 +659,29 @@ export default function AdminPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   Run ML Training
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleRecategorizeWithLearning}
+              disabled={recategorizing}
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 shadow-lg transition-colors"
+            >
+              {recategorizing ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Learning...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Apply Learning & Re-categorize
                 </>
               )}
             </button>
@@ -956,6 +1004,50 @@ export default function AdminPage() {
                             </div>
                             <div className="text-sm text-gray-600">{suggestion.description}</div>
                             <div className="text-xs text-gray-500">{suggestion.reasoning}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-semibold text-green-600">{suggestion.confidence}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {recategorizationResults && (
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Learning-Based Re-categorization Results</h3>
+            <div className="space-y-4">
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="font-semibold text-green-800 mb-2">Summary</h4>
+                <p className="text-green-700">
+                  Generated {recategorizationResults.recategorized_count} new suggestions using learned patterns from your feedback!
+                </p>
+                <p className="text-green-600 text-sm mt-1">
+                  These suggestions are based on patterns learned from your previous corrections.
+                </p>
+              </div>
+              
+              {recategorizationResults.new_suggestions && recategorizationResults.new_suggestions.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-800 mb-3">New Suggestions Using Learned Patterns ({recategorizationResults.new_suggestions.length}):</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {recategorizationResults.new_suggestions.map((suggestion: any, index: number) => (
+                      <div key={index} className="bg-gray-50 p-3 rounded border-l-4 border-green-500">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              {suggestion.current_type} → {suggestion.suggested_type}
+                            </div>
+                            <div className="text-sm text-gray-600">{suggestion.description}</div>
+                            <div className="text-xs text-gray-500">{suggestion.reasoning}</div>
+                            {suggestion.reasoning.includes('learned patterns') && (
+                              <div className="text-xs text-green-600 font-medium">✨ Using learned patterns</div>
+                            )}
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-semibold text-green-600">{suggestion.confidence}%</div>
