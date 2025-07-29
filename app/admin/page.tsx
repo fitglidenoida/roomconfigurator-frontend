@@ -741,7 +741,7 @@ export default function AdminPage() {
         {activeTab === 'analysis' && enhancedCategorization && (
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Enhanced Categorization Results</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-3xl font-bold text-green-600">{enhancedCategorization.high_confidence_suggestions.length}</div>
                 <div className="text-sm text-gray-600">High Confidence Suggestions</div>
@@ -751,8 +751,12 @@ export default function AdminPage() {
                 <div className="text-sm text-gray-600">Need Manual Review</div>
               </div>
               <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-3xl font-bold text-purple-600">{Object.keys(enhancedCategorization.categorization_summary).length}</div>
+                <div className="text-3xl font-bold text-purple-600">{Object.keys(enhancedCategorization.categorization_summary.by_type).length}</div>
                 <div className="text-sm text-gray-600">Categories Found</div>
+              </div>
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-3xl font-bold text-blue-600">{enhancedCategorization.skipped_components || 0}</div>
+                <div className="text-sm text-gray-600">Already Categorized</div>
               </div>
             </div>
             

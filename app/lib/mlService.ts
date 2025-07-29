@@ -354,6 +354,20 @@ export const analyzeComponentData = async (components: any[]) => {
 export const enhancedCategorizeComponents = async (components: any[]) => {
   console.log('Starting enhanced component categorization with hierarchy...');
   
+  // Get learning feedback to avoid re-suggesting corrected patterns
+  const learningStats = getLearningStats();
+  const correctedComponents = new Set();
+  
+  if (learningStats && learningStats.recentFeedback) {
+    learningStats.recentFeedback.forEach((feedback: any) => {
+      if (feedback.userCorrection.action === 'edit' || feedback.userCorrection.action === 'accept') {
+        correctedComponents.add(feedback.componentId);
+      }
+    });
+  }
+  
+  console.log(`Found ${correctedComponents.size} previously corrected components to skip`);
+  
   // Enhanced categorization patterns with main types and sub-categories
   const enhancedPatterns = {
     'Audio': {
@@ -468,6 +482,48 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
   };
 
   const categorizationResults = components.map(component => {
+    // Skip components that have already been corrected by the user
+    if (correctedComponents.has(component.documentId || component.id)) {
+      console.log(`Skipping previously corrected component: ${component.description}`);
+      return {
+        component_id: component.documentId || component.id,
+        current_type: component.component_type || 'Uncategorized',
+        current_category: component.component_category || 'Uncategorized',
+        suggested_type: component.component_type || 'Uncategorized',
+        suggested_category: component.component_category || 'Uncategorized',
+        confidence: 100,
+        description: component.description,
+        make: component.make,
+        model: component.model,
+        reasoning: 'Previously corrected by user',
+        needs_manual_review: false,
+        skip_suggestion: true // Flag to indicate this should be skipped in suggestions
+      };
+    }
+    
+    // Skip components that are already properly categorized
+    const currentType = component.component_type || 'Uncategorized';
+    const currentCategory = component.component_category || 'Uncategorized';
+    
+    if (currentType !== 'Uncategorized' && currentType !== 'AV Equipment' && 
+        currentCategory !== 'Uncategorized' && currentCategory !== 'AV Equipment') {
+      console.log(`Skipping already categorized component: ${component.description} (${currentType}/${currentCategory})`);
+      return {
+        component_id: component.documentId || component.id,
+        current_type: currentType,
+        current_category: currentCategory,
+        suggested_type: currentType,
+        suggested_category: currentCategory,
+        confidence: 100,
+        description: component.description,
+        make: component.make,
+        model: component.model,
+        reasoning: 'Already properly categorized',
+        needs_manual_review: false,
+        skip_suggestion: true
+      };
+    }
+    
     const description = (component.description || '').toLowerCase();
     const make = (component.make || '').toLowerCase();
     const model = (component.model || '').toLowerCase();
@@ -542,11 +598,11 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     };
   });
 
-  // Filter high-confidence suggestions (both type and category)
-  const highConfidenceSuggestions = categorizationResults.filter(s => s.confidence >= 60);
-  const needsManualReview = categorizationResults.filter(s => s.needs_manual_review);
+  // Filter high-confidence suggestions (both type and category), excluding skipped items
+  const highConfidenceSuggestions = categorizationResults.filter(s => s.confidence >= 60 && !s.skip_suggestion);
+  const needsManualReview = categorizationResults.filter(s => s.needs_manual_review && !s.skip_suggestion);
 
-  console.log(`Enhanced categorization complete: ${highConfidenceSuggestions.length} high-confidence, ${needsManualReview.length} need manual review`);
+  console.log(`Enhanced categorization complete: ${highConfidenceSuggestions.length} high-confidence, ${needsManualReview.length} need manual review, ${categorizationResults.filter(r => r.skip_suggestion).length} already categorized`);
 
   return {
     total_components: components.length,
@@ -557,7 +613,7 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
       by_type: Object.fromEntries(
         Object.keys(enhancedPatterns).map(type => [
           type, 
-          categorizationResults.filter(r => r.suggested_type === type).length
+          categorizationResults.filter(r => r.suggested_type === type && !r.skip_suggestion).length
         ])
       ),
       by_category: Object.fromEntries(
@@ -565,10 +621,12 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
           Object.keys(config.subCategories)
         ).map(category => [
           category,
-          categorizationResults.filter(r => r.suggested_category === category).length
+          categorizationResults.filter(r => r.suggested_category === category && !r.skip_suggestion).length
         ])
       )
-    }
+    },
+    skipped_components: categorizationResults.filter(r => r.skip_suggestion).length,
+    corrected_components: correctedComponents.size
   };
 }; 
 
