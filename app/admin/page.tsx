@@ -21,12 +21,12 @@ const updateComponentCategorization = async (componentId: string, type: string, 
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        data: {
-          component_type: type,
-          component_category: category
-        }
-      })
+          body: JSON.stringify({
+      data: {
+        component_type: type,        // Main category (Audio, Video, Control, etc.)
+        component_category: category // Sub-category (Speakers, Microphones, etc.)
+      }
+    })
     });
 
     if (!response.ok) {
@@ -53,17 +53,17 @@ const ManualReviewItem = ({ item, onCategorize }: {
 
   const getSubCategories = (type: string) => {
     const subCategories: { [key: string]: string[] } = {
-      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors'],
-      'Video': ['Displays', 'Cameras', 'Projectors', 'Switchers', 'Processors'],
-      'Control': ['Touch Panels', 'Keypads', 'Controllers', 'Software'],
-      'Switcher': ['Matrix Switchers', 'Distribution Amplifiers', 'Scalers'],
-      'Cabling': ['Cables', 'Connectors', 'Adapters', 'Patch Panels'],
-      'Mounting': ['Mounts', 'Brackets', 'Hardware', 'Tools'],
-      'Network': ['Switches', 'Routers', 'Access Points', 'Cables'],
-      'Power': ['Power Supplies', 'UPS', 'Distribution', 'Cables'],
-      'Lighting': ['Fixtures', 'Controllers', 'Dimmers', 'Cables'],
-      'Rack & Enclosures': ['Racks', 'Enclosures', 'Shelves', 'Hardware'],
-      'Tools & Accessories': ['Tools', 'Test Equipment', 'Accessories'],
+      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Audio Interfaces', 'Headphones', 'Audio Cables', 'Audio Converters'],
+      'Video': ['Displays', 'Cameras', 'Projectors', 'Switchers', 'Processors', 'Video Cables', 'Scalers', 'Video Interfaces', 'Video Converters'],
+      'Control': ['Touch Panels', 'Keypads', 'Controllers', 'Software', 'Control Systems', 'Programming Tools', 'Control Interfaces'],
+      'Switcher': ['Matrix Switchers', 'Distribution Amplifiers', 'Scalers', 'Video Switchers', 'Audio Switchers', 'HDMI Switchers'],
+      'Cabling': ['Cables', 'Connectors', 'Adapters', 'Patch Panels', 'Cable Management', 'Termination Tools', 'Cable Testers'],
+      'Mounting': ['Mounts', 'Brackets', 'Hardware', 'Tools', 'Ceiling Mounts', 'Wall Mounts', 'Rack Mounts', 'Floor Stands'],
+      'Network': ['Switches', 'Routers', 'Access Points', 'Cables', 'Network Cards', 'Network Tools', 'Network Converters'],
+      'Power': ['Power Supplies', 'UPS', 'Distribution', 'Cables', 'Power Strips', 'Power Management', 'Power Converters'],
+      'Lighting': ['Fixtures', 'Controllers', 'Dimmers', 'Cables', 'LED Systems', 'Lighting Control', 'Lighting Accessories'],
+      'Rack & Enclosures': ['Racks', 'Enclosures', 'Shelves', 'Hardware', 'Rack Accessories', 'Cable Management', 'Rack Cooling'],
+      'Tools & Accessories': ['Tools', 'Test Equipment', 'Accessories', 'Installation Tools', 'Maintenance Tools', 'Calibration Tools'],
       'Uncategorized': ['Uncategorized'],
       'Custom': ['Custom']
     };
@@ -94,7 +94,7 @@ const ManualReviewItem = ({ item, onCategorize }: {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type (Main Category)</label>
           <select
             value={selectedType}
             onChange={(e) => {
@@ -120,7 +120,7 @@ const ManualReviewItem = ({ item, onCategorize }: {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category (Sub-Category)</label>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
