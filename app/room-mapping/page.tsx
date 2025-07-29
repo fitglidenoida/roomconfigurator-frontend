@@ -50,6 +50,8 @@ export default function RoomMappingPage() {
   const [projectCurrency, setProjectCurrency] = useState<string>('USD');
   const [selectedRoomTypesForComparison, setSelectedRoomTypesForComparison] = useState<string[]>([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [roomConfigurations, setRoomConfigurations] = useState<any[]>([]);
+  const [loadingConfigurations, setLoadingConfigurations] = useState(false);
   const pathname = usePathname();
 
   // Load SRM data and project details from sessionStorage
@@ -330,6 +332,31 @@ export default function RoomMappingPage() {
       const roomType = existingRoomTypes.find(rt => rt.id.toString() === roomTypeId);
       return roomType;
     }).filter(Boolean);
+  };
+
+  const fetchRoomConfigurations = async (roomTypeIds: string[]) => {
+    setLoadingConfigurations(true);
+    try {
+      const configs = [];
+      for (const roomTypeId of roomTypeIds) {
+        const roomType = existingRoomTypes.find(rt => rt.id.toString() === roomTypeId);
+        if (roomType) {
+          // Fetch room configurations for this room type
+          const response = await apiService.getRoomConfigurations({ 
+            filters: { room_type: roomType.id }
+          });
+          configs.push({
+            roomType,
+            configurations: response.data?.data || []
+          });
+        }
+      }
+      setRoomConfigurations(configs);
+    } catch (error) {
+      console.error('Error fetching room configurations:', error);
+    } finally {
+      setLoadingConfigurations(false);
+    }
   };
 
   return (
@@ -854,30 +881,33 @@ export default function RoomMappingPage() {
           </ul>
         </div>
 
-        {/* Room Type Comparison Controls */}
+        {/* Room Type Comparison Controls - Fixed Position */}
         {selectedRoomTypesForComparison.length > 0 && (
-          <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-green-900">
-                  Room Type Comparison ({selectedRoomTypesForComparison.length}/3 selected)
-                </h3>
-                <p className="text-sm text-green-700 mt-1">
-                  Compare selected room types to see detailed specifications and configurations
-                </p>
+          <div className="fixed bottom-4 right-4 z-40 bg-green-600 text-white rounded-lg shadow-lg p-4">
+            <div className="flex items-center space-x-3">
+              <div className="text-sm">
+                <div className="font-semibold">
+                  {selectedRoomTypesForComparison.length}/3 Room Types Selected
+                </div>
+                <div className="text-green-100 text-xs">
+                  Ready to compare configurations
+                </div>
               </div>
-              <div className="flex space-x-3">
+              <div className="flex space-x-2">
                 <button
                   onClick={clearRoomTypeSelection}
-                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                  className="px-3 py-1 text-xs bg-green-700 text-white rounded hover:bg-green-800 transition-colors"
                 >
-                  Clear Selection
+                  Clear
                 </button>
                 <button
-                  onClick={() => setShowComparisonModal(true)}
-                  className="px-6 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  onClick={async () => {
+                    await fetchRoomConfigurations(selectedRoomTypesForComparison);
+                    setShowComparisonModal(true);
+                  }}
+                  className="px-4 py-1 text-xs bg-white text-green-600 rounded hover:bg-gray-100 transition-colors font-semibold"
                 >
-                  Compare Selected
+                  Compare
                 </button>
               </div>
             </div>
@@ -898,69 +928,121 @@ export default function RoomMappingPage() {
                 </button>
               </div>
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {getSelectedRoomTypesData().map((roomType, index) => (
-                    <div key={index} className="bg-gray-50 rounded-lg p-4">
-                      <h4 className="font-semibold text-gray-800 mb-3">{roomType?.name}</h4>
-                      
-                      {/* Room Type Details */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">Room Type Specifications</h5>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div>Type: {roomType?.room_type}</div>
-                          <div>Sub-type: {roomType?.sub_type}</div>
-                          <div>Category: {roomType?.category}</div>
-                          <div>Default PAX: {roomType?.default_pax} people</div>
-                          <div>Configurable: {roomType?.is_configurable ? 'Yes' : 'No'}</div>
+                {loadingConfigurations ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <svg className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <p className="text-gray-600">Loading room configurations...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {roomConfigurations.map((configData, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-800 mb-3">{configData.roomType?.name}</h4>
+                        
+                        {/* Room Type Details */}
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Room Specifications</h5>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div>Type: {configData.roomType?.room_type}</div>
+                            <div>Sub-type: {configData.roomType?.sub_type}</div>
+                            <div>Default PAX: {configData.roomType?.default_pax} people</div>
+                            <div>Region: {configData.roomType?.region}, {configData.roomType?.country}</div>
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Location Details */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">Location</h5>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div>Region: {roomType?.region}</div>
-                          <div>Country: {roomType?.country}</div>
-                          {roomType?.region !== selectedRegion && (
-                            <div className="text-orange-600">⚠️ Different region from project</div>
+                        {/* Room Configurations */}
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Available Configurations</h5>
+                          {configData.configurations.length > 0 ? (
+                            <div className="space-y-2">
+                              {configData.configurations.map((config: any, configIndex: number) => (
+                                <div key={configIndex} className="bg-white rounded border p-3">
+                                  <div className="font-medium text-sm text-gray-800 mb-2">
+                                    Configuration {configIndex + 1}
+                                  </div>
+                                  <div className="text-xs text-gray-600 space-y-1">
+                                    <div>Components: {config.components?.length || 0}</div>
+                                    <div>Total Cost: ${config.total_cost || 0}</div>
+                                    {config.description && (
+                                      <div>Description: {config.description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 italic">
+                              No configurations available for this room type
+                            </div>
                           )}
                         </div>
-                      </div>
 
-                      {/* Usage Statistics */}
-                      <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">Usage in Current Project</h5>
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <div>Total Mapped: {roomMappings.filter(r => r.selected_room_type?.id === roomType?.id).length}</div>
-                          <div>Total SRM Rooms: {srmRooms.length}</div>
-                        </div>
+                        {/* Component Breakdown */}
+                        {configData.configurations.length > 0 && (
+                          <div className="mb-4">
+                            <h5 className="text-sm font-medium text-gray-700 mb-2">Component Categories</h5>
+                            <div className="space-y-1 text-xs text-gray-600">
+                              {(() => {
+                                const allComponents = configData.configurations.flatMap((config: any) => 
+                                  config.components || []
+                                );
+                                const categories = allComponents.reduce((acc: any, comp: any) => {
+                                  const category = comp.component_category || 'Uncategorized';
+                                  acc[category] = (acc[category] || 0) + 1;
+                                  return acc;
+                                }, {});
+                                return Object.entries(categories).map(([category, count]: [string, any]) => (
+                                  <div key={category} className="flex justify-between">
+                                    <span>{category}:</span>
+                                    <span className="font-medium">{count}</span>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
-                {/* Comparison Summary */}
+                {/* Configuration Comparison Summary */}
                 <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-2">Comparison Summary</h4>
+                  <h4 className="font-semibold text-blue-900 mb-2">Configuration Comparison Summary</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <div className="font-medium text-blue-800">Total Room Types</div>
-                      <div className="text-blue-600">{getSelectedRoomTypesData().length}</div>
+                      <div className="font-medium text-blue-800">Room Types</div>
+                      <div className="text-blue-600">{roomConfigurations.length}</div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Total SRM Rooms</div>
-                      <div className="text-green-600">{srmRooms.length}</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-blue-800">Mapped Rooms</div>
-                      <div className="text-blue-600">
-                        {roomMappings.filter(r => r.status === 'mapped').length}
+                      <div className="font-medium text-blue-800">Total Configurations</div>
+                      <div className="text-green-600">
+                        {roomConfigurations.reduce((total, config) => total + config.configurations.length, 0)}
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Unmapped Rooms</div>
+                      <div className="font-medium text-blue-800">Total Components</div>
+                      <div className="text-blue-600">
+                        {roomConfigurations.reduce((total, config) => 
+                          total + config.configurations.reduce((configTotal: number, conf: any) => 
+                            configTotal + (conf.components?.length || 0), 0
+                          ), 0
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-blue-800">Avg Cost per Room</div>
                       <div className="text-yellow-600">
-                        {roomMappings.filter(r => r.status === 'unmapped').length}
+                        ${Math.round(roomConfigurations.reduce((total, config) => 
+                          total + config.configurations.reduce((configTotal: number, conf: any) => 
+                            configTotal + (conf.total_cost || 0), 0
+                          ), 0
+                        ) / Math.max(roomConfigurations.length, 1))}
                       </div>
                     </div>
                   </div>
