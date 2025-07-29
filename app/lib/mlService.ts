@@ -207,3 +207,86 @@ class MLService {
 
 // Export singleton instance
 export const mlService = new MLService(); 
+
+// ML Training for Uncategorized Components
+export const trainOnUncategorizedComponents = async (uncategorizedComponents: any[]) => {
+  console.log('Starting ML training on uncategorized components:', uncategorizedComponents.length);
+  
+  // Simple pattern-based training
+  const trainingPatterns = {
+    'Displays': ['display', 'tv', 'monitor', 'screen', 'panel', 'lcd', 'oled', 'led', 'projection'],
+    'Audio': ['speaker', 'audio', 'sound', 'mic', 'microphone', 'amplifier', 'mixer', 'processor'],
+    'Cabling': ['cable', 'wire', 'connector', 'hdmi', 'vga', 'dvi', 'displayport', 'ethernet', 'fiber'],
+    'Mounting': ['mount', 'bracket', 'stand', 'support', 'holder', 'clamp', 'rail'],
+    'Control Systems': ['switch', 'matrix', 'controller', 'processor', 'dsp', 'control', 'automation'],
+    'Projection': ['projector', 'lens', 'screen', 'throw', 'distance'],
+    'Video': ['camera', 'video', 'streaming', 'recording', 'capture'],
+    'Lighting': ['light', 'led', 'lamp', 'illumination', 'ambient'],
+    'Processing': ['processor', 'dsp', 'amplifier', 'mixer', 'equalizer', 'crossover'],
+    'Rack & Enclosures': ['rack', 'cabinet', 'enclosure', 'housing', 'case', 'chassis'],
+    'Network': ['switch', 'router', 'ethernet', 'wifi', 'network', 'poe'],
+    'Power': ['power', 'supply', 'ups', 'battery', 'adapter', 'transformer']
+  };
+
+  const suggestions = uncategorizedComponents.map(component => {
+    const description = (component.description || '').toLowerCase();
+    let bestMatch = 'Uncategorized';
+    let bestScore = 0;
+
+    // Find the best matching category
+    Object.entries(trainingPatterns).forEach(([category, patterns]) => {
+      const score = patterns.reduce((total, pattern) => {
+        return total + (description.includes(pattern) ? 1 : 0);
+      }, 0);
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = category;
+      }
+    });
+
+    return {
+      component_id: component.id,
+      current_type: component.component_type,
+      suggested_type: bestMatch,
+      confidence: bestScore > 0 ? Math.min(bestScore * 20, 100) : 0,
+      description: component.description,
+      reasoning: bestScore > 0 ? `Matched ${bestScore} pattern(s) for ${bestMatch}` : 'No clear pattern match'
+    };
+  });
+
+  console.log('ML training results:', suggestions);
+  
+  // Filter high-confidence suggestions
+  const highConfidenceSuggestions = suggestions.filter(s => s.confidence >= 60);
+  console.log('High confidence suggestions:', highConfidenceSuggestions.length);
+
+  return {
+    total_components: uncategorizedComponents.length,
+    suggestions,
+    high_confidence_suggestions: highConfidenceSuggestions,
+    training_patterns: Object.keys(trainingPatterns)
+  };
+};
+
+// Auto-categorize uncategorized components
+export const autoCategorizeComponents = async (components: any[]) => {
+  const uncategorized = components.filter(comp => 
+    !comp.component_type || 
+    comp.component_type === 'AV Equipment' || 
+    comp.component_type === 'Uncategorized'
+  );
+
+  if (uncategorized.length === 0) {
+    return { message: 'No uncategorized components found' };
+  }
+
+  const trainingResults = await trainOnUncategorizedComponents(uncategorized);
+  
+  // Return suggestions for manual review
+  return {
+    message: `Found ${uncategorized.length} uncategorized components`,
+    suggestions: trainingResults.high_confidence_suggestions,
+    total_suggestions: trainingResults.suggestions.length
+  };
+}; 

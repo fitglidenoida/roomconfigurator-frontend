@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchAllPages } from '../lib/api';
+import { autoCategorizeComponents } from '../lib/mlService';
 
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
@@ -25,7 +26,17 @@ interface DashboardData {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 export default function PMDashboard() {
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    totalProjectCost: 0,
+    roomLevelCosts: [],
+    costBreakdown: [],
+    regionalComparison: [],
+    budgetStatus: { approved: 0, actual: 0, variance: 0, percentage: 0 },
+    costOptimization: [],
+    recentProjects: []
+  });
+  const [mlTrainingResults, setMlTrainingResults] = useState<any>(null);
+  const [mlTrainingLoading, setMlTrainingLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProject] = useState<string>('');
@@ -292,8 +303,12 @@ export default function PMDashboard() {
             type = 'Video';
           } else if (description.includes('light') || description.includes('led')) {
             type = 'Lighting';
+          } else if (description.includes('processor') || description.includes('dsp') || description.includes('amplifier')) {
+            type = 'Processing';
+          } else if (description.includes('rack') || description.includes('cabinet') || description.includes('enclosure')) {
+            type = 'Rack & Enclosures';
           } else {
-            type = 'Other Equipment';
+            type = 'Uncategorized';
           }
         }
         
@@ -384,6 +399,12 @@ export default function PMDashboard() {
         recentProjects: projectsData.slice(0, 5)
       });
 
+      // ML Training for uncategorized components (if any)
+      const uncategorizedCount = costBreakdown.find(item => item.type === 'Uncategorized')?.count || 0;
+      if (uncategorizedCount > 0) {
+        console.log(`Found ${uncategorizedCount} uncategorized components - ML training available`);
+      }
+
     } catch (err) {
       setError('Failed to fetch dashboard data');
       console.error('Dashboard error:', err);
@@ -442,6 +463,21 @@ export default function PMDashboard() {
   const formatProjectCurrency = (amount: number) => {
     const projectCurrency = getProjectCurrency();
     return formatCurrency(amount, projectCurrency);
+  };
+
+  // ML Training for uncategorized components
+  const handleMLTraining = async () => {
+    setMlTrainingLoading(true);
+    try {
+      const avComponents = await fetchAllPages('/av-components');
+      const results = await autoCategorizeComponents(avComponents);
+      setMlTrainingResults(results);
+      console.log('ML Training completed:', results);
+    } catch (error) {
+      console.error('ML Training error:', error);
+    } finally {
+      setMlTrainingLoading(false);
+    }
   };
 
   // Generate cost optimization suggestions based on current project's heavy-spend components
