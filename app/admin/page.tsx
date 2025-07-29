@@ -1,251 +1,178 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchAllPages, apiService } from '../lib/api';
-import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning, recategorizeWithLearning, mlModel } from '../lib/mlService';
+import { fetchAllPages } from '../lib/api';
+import { 
+  analyzeComponentData, 
+  enhancedCategorizeComponentsWithLearning, 
+  recategorizeWithLearning, 
+  storeLearningFeedback, 
+  getLearningStats,
+  mlModel 
+} from '../lib/mlService';
 
-// API function to update component categorization
+// Update component categorization in database
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
   try {
-    console.log('Updating component:', { componentId, type, category });
-    
-    const result = await apiService.updateAVComponent(componentId, {
-      component_type: type,
-      component_category: category
+    const response = await fetch(`/api/av-components/${componentId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        component_type: type,
+        component_category: category
+      })
     });
-    
-    console.log('Component updated successfully:', result);
-    return result;
+
+    if (!response.ok) {
+      throw new Error(`Failed to update component: ${response.statusText}`);
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Error updating component:', error);
-    console.error('Component ID used:', componentId);
     throw error;
   }
 };
 
-// Manual Review Item Component
-const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (componentId: string, type: string, category: string, confidence: number, notes?: string) => void }) => {
-  const [selectedType, setSelectedType] = useState(item.suggested_type || 'Uncategorized');
-  const [selectedCategory, setSelectedCategory] = useState(item.suggested_category || 'Uncategorized');
-  const [confidence, setConfidence] = useState(80);
-  const [notes, setNotes] = useState('');
-  const [showForm, setShowForm] = useState(false);
-
-  const types = [
-    'Audio', 'Video', 'Control', 'Switcher', 'Cabling', 'Mounting', 'Network', 'Power', 
-    'Lighting', 'Rack & Enclosures', 'Tools & Accessories', 'Uncategorized', 'Custom'
-  ];
-
+// Manual review item component
+const ManualReviewItem = ({ item, onCategorize }: { 
+  item: any; 
+  onCategorize: (componentId: string, type: string, category: string, confidence: number, notes?: string) => void 
+}) => {
+  const [selectedType, setSelectedType] = useState(item.component_type || 'Uncategorized');
+  const [selectedCategory, setSelectedCategory] = useState(item.component_category || 'Uncategorized');
   const [customType, setCustomType] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+  const [notes, setNotes] = useState('');
 
   const getSubCategories = (type: string) => {
-    const subCategoriesMap: { [key: string]: string[] } = {
-      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
-      'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
-      'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
-      'Switcher': ['Video Switchers', 'Audio Switchers', 'Matrix Switchers', 'Distribution Amplifiers'],
-      'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
-      'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
-      'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
-      'Power': ['UPS Systems', 'Power Supplies', 'PDUs', 'Batteries'],
-      'Lighting': ['LED Lights', 'Controls', 'Accessories'],
-      'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
-      'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
+    const subCategories: { [key: string]: string[] } = {
+      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors'],
+      'Video': ['Displays', 'Cameras', 'Projectors', 'Switchers', 'Processors'],
+      'Control': ['Touch Panels', 'Keypads', 'Controllers', 'Software'],
+      'Switcher': ['Matrix Switchers', 'Distribution Amplifiers', 'Scalers'],
+      'Cabling': ['Cables', 'Connectors', 'Adapters', 'Patch Panels'],
+      'Mounting': ['Mounts', 'Brackets', 'Hardware', 'Tools'],
+      'Network': ['Switches', 'Routers', 'Access Points', 'Cables'],
+      'Power': ['Power Supplies', 'UPS', 'Distribution', 'Cables'],
+      'Lighting': ['Fixtures', 'Controllers', 'Dimmers', 'Cables'],
+      'Rack & Enclosures': ['Racks', 'Enclosures', 'Shelves', 'Hardware'],
+      'Tools & Accessories': ['Tools', 'Test Equipment', 'Accessories'],
       'Uncategorized': ['Uncategorized'],
       'Custom': ['Custom']
     };
-    return subCategoriesMap[type] || ['Uncategorized'];
+    return subCategories[type] || ['Uncategorized'];
   };
 
   const handleSubmit = () => {
-    // Get the final values from either dropdown or direct text input
-    let finalType = selectedType;
-    let finalCategory = selectedCategory;
+    const finalType = selectedType === 'Custom' ? customType : selectedType;
+    const finalCategory = selectedCategory === 'Custom' ? customCategory : selectedCategory;
     
-    // If type is Custom, use the custom text input value
-    if (selectedType === 'Custom') {
-      finalType = customType.trim();
-      if (!finalType) {
-        alert('Please enter a type');
-        return;
-      }
+    if (!finalType || !finalCategory) {
+      alert('Please select or enter both type and category');
+      return;
     }
     
-    // If category is Custom, use the custom text input value
-    if (selectedCategory === 'Custom') {
-      finalCategory = customCategory.trim();
-      if (!finalCategory) {
-        alert('Please enter a category');
-        return;
-      }
-    }
-    
-    onCategorize(item.component_id, finalType, finalCategory, confidence, notes);
-    setShowForm(false);
+    onCategorize(item.documentId || item.id, finalType, finalCategory, 100, notes);
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+    <div className="bg-white p-4 rounded-lg border border-gray-200">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <h4 className="font-medium text-gray-900">{item.description || 'No description'}</h4>
-          <p className="text-sm text-gray-600 mt-1">
-            {item.make} {item.model}
-          </p>
-          <div className="flex items-center space-x-4 mt-2">
-            <span className="text-sm text-gray-500">Current: {item.current_type} / {item.current_category}</span>
-            <span className="text-sm text-yellow-600 font-medium">Suggested: {item.suggested_type} / {item.suggested_category}</span>
-            <span className="text-sm text-red-600 font-medium">Confidence: {item.confidence}%</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>
-        </div>
-        <div className="flex space-x-2 ml-4">
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-          >
-            {showForm ? 'Cancel' : 'Categorize'}
-          </button>
+          <h4 className="font-medium text-gray-900">{item.description}</h4>
+          <p className="text-sm text-gray-600">{item.make} {item.model}</p>
+          <p className="text-xs text-gray-500">ID: {item.documentId || item.id}</p>
         </div>
       </div>
 
-      {showForm && (
-        <div className="border-t pt-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type (Main Category)</label>
-              <select
-                value={selectedType}
-                onChange={(e) => {
-                  setSelectedType(e.target.value);
-                  setSelectedCategory('Uncategorized'); // Reset sub-category when type changes
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {types.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category (Sub-Category)</label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {getSubCategories(selectedType).map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <select
+            value={selectedType}
+            onChange={(e) => {
+              setSelectedType(e.target.value);
+              setSelectedCategory('Uncategorized');
+            }}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="Audio">Audio</option>
+            <option value="Video">Video</option>
+            <option value="Control">Control</option>
+            <option value="Switcher">Switcher</option>
+            <option value="Cabling">Cabling</option>
+            <option value="Mounting">Mounting</option>
+            <option value="Network">Network</option>
+            <option value="Power">Power</option>
+            <option value="Lighting">Lighting</option>
+            <option value="Rack & Enclosures">Rack & Enclosures</option>
+            <option value="Tools & Accessories">Tools & Accessories</option>
+            <option value="Uncategorized">Uncategorized</option>
+            <option value="Custom">Custom</option>
+          </select>
+        </div>
 
-          {/* Custom Type Input */}
-          {selectedType === 'Custom' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Type</label>
-              <input
-                type="text"
-                placeholder="Enter custom type..."
-                value={customType}
-                onChange={(e) => setCustomType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {getSubCategories(selectedType).map((category: string) => (
+              <option key={category} value={category}>{category}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-          {/* Custom Category Input */}
-          {selectedCategory === 'Custom' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Custom Category</label>
-              <input
-                type="text"
-                placeholder="Enter custom category..."
-                value={customCategory}
-                onChange={(e) => setCustomCategory(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          )}
-
-          {/* Direct Text Input for Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Type (Main Category) - Or enter custom text
-            </label>
-            <input
-              type="text"
-              placeholder="Enter type or select from dropdown above..."
-              value={selectedType === 'Custom' ? customType : selectedType}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectedType('Custom');
-                setCustomType(value);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Direct Text Input for Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category (Sub-Category) - Or enter custom text
-            </label>
-            <input
-              type="text"
-              placeholder="Enter category or select from dropdown above..."
-              value={selectedCategory === 'Custom' ? customCategory : selectedCategory}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectedCategory('Custom');
-                setCustomCategory(value);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confidence (%)</label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={confidence}
-                onChange={(e) => setConfidence(Number(e.target.value))}
-                className="w-full"
-              />
-              <div className="text-sm text-gray-600 mt-1">{confidence}%</div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-              <input
-                type="text"
-                placeholder="Research notes, reasoning..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-            >
-              Save Categorization
-            </button>
-          </div>
+      {selectedType === 'Custom' && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Custom Type</label>
+          <input
+            type="text"
+            value={customType}
+            onChange={(e) => setCustomType(e.target.value)}
+            placeholder="Enter custom type..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
         </div>
       )}
+
+      {selectedCategory === 'Custom' && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Custom Category</label>
+          <input
+            type="text"
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+            placeholder="Enter custom category..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      )}
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Add any notes about this categorization..."
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          rows={2}
+        />
+      </div>
+
+      <button
+        onClick={handleSubmit}
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
+      >
+        Categorize Component
+      </button>
     </div>
   );
 };
@@ -264,7 +191,6 @@ export default function AdminPage() {
   const [manualReviewCategory, setManualReviewCategory] = useState('');
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
-  const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string, customType: string, customCategory: string} | null>(null);
   const [learningStats, setLearningStats] = useState<any>(null);
   const [recategorizationResults, setRecategorizationResults] = useState<any>(null);
   const [recategorizing, setRecategorizing] = useState(false);
@@ -408,33 +334,35 @@ export default function AdminPage() {
     try {
       await updateComponentCategorization(componentId, type, category);
       
-      // Store learning feedback for ML improvement
-      const component = enhancedCategorization?.needs_manual_review?.find((item: any) => item.component_id === componentId);
-      if (component) {
-        const feedback = {
-          componentId,
-          originalSuggestion: {
-            type: component.suggested_type || 'Uncategorized',
-            category: component.suggested_category || 'Uncategorized',
-            confidence: component.confidence || 0
-          },
-          userCorrection: {
-            type,
-            category,
-            action: 'edit' as const
-          },
-          componentData: {
-            description: component.description || '',
-            make: component.make || '',
-            model: component.model || ''
-          },
-          timestamp: new Date()
-        };
-        
-        storeLearningFeedback(feedback);
-      }
+      // Store learning feedback
+      const feedback = {
+        componentId,
+        originalSuggestion: {
+          type: 'manual_review',
+          category: 'manual_review',
+          confidence: 0
+        },
+        userCorrection: {
+          type,
+          category,
+          action: 'edit' as const
+        },
+        componentData: {
+          description: '',
+          make: '',
+          model: ''
+        },
+        timestamp: new Date()
+      };
       
-      setReviewedItems(prev => new Set([...prev, componentId]));
+      storeLearningFeedback(feedback);
+      
+      // Remove from manual review list
+      setEnhancedCategorization((prev: any) => ({
+        ...prev,
+        needs_manual_review: prev.needs_manual_review.filter((item: any) => (item.documentId || item.id) !== componentId)
+      }));
+      
       console.log('Manual review categorization completed:', { componentId, type, category, confidence, notes });
     } catch (error) {
       console.error('Error in manual review categorization:', error);
@@ -451,32 +379,32 @@ export default function AdminPage() {
         item.make?.toLowerCase().includes(manualReviewFilter.toLowerCase()) ||
         item.model?.toLowerCase().includes(manualReviewFilter.toLowerCase());
       
-      const matchesCategory = !manualReviewCategory || item.suggested_type === manualReviewCategory;
+      const matchesCategory = !manualReviewCategory || 
+        item.component_type === manualReviewCategory;
       
       return matchesFilter && matchesCategory;
     });
   };
 
   const getSubCategories = (type: string) => {
-    const subCategoriesMap: { [key: string]: string[] } = {
-      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
-      'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
-      'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
-      'Switcher': ['Video Switchers', 'Audio Switchers', 'Matrix Switchers', 'Distribution Amplifiers'],
-      'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
-      'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
-      'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
-      'Power': ['UPS Systems', 'Power Supplies', 'PDUs', 'Batteries'],
-      'Lighting': ['LED Lights', 'Controls', 'Accessories'],
-      'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
-      'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
+    const subCategories: { [key: string]: string[] } = {
+      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors'],
+      'Video': ['Displays', 'Cameras', 'Projectors', 'Switchers', 'Processors'],
+      'Control': ['Touch Panels', 'Keypads', 'Controllers', 'Software'],
+      'Switcher': ['Matrix Switchers', 'Distribution Amplifiers', 'Scalers'],
+      'Cabling': ['Cables', 'Connectors', 'Adapters', 'Patch Panels'],
+      'Mounting': ['Mounts', 'Brackets', 'Hardware', 'Tools'],
+      'Network': ['Switches', 'Routers', 'Access Points', 'Cables'],
+      'Power': ['Power Supplies', 'UPS', 'Distribution', 'Cables'],
+      'Lighting': ['Fixtures', 'Controllers', 'Dimmers', 'Cables'],
+      'Rack & Enclosures': ['Racks', 'Enclosures', 'Shelves', 'Hardware'],
+      'Tools & Accessories': ['Tools', 'Test Equipment', 'Accessories'],
       'Uncategorized': ['Uncategorized'],
       'Custom': ['Custom']
     };
-    return subCategoriesMap[type] || ['Uncategorized'];
+    return subCategories[type] || ['Uncategorized'];
   };
 
-  // Batch update function for efficiency
   const handleBatchUpdate = async (updates: Array<{componentId: string, type: string, category: string}>) => {
     setUpdating(true);
     setUpdateProgress(0);
@@ -486,27 +414,22 @@ export default function AdminPage() {
         const update = updates[i];
         await updateComponentCategorization(update.componentId, update.type, update.category);
         setUpdateProgress(((i + 1) / updates.length) * 100);
-        
-        // Small delay to avoid overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      // Refresh the analysis after batch update
+      // Refresh data after batch update
       await handleComponentAnalysis();
       alert(`Successfully updated ${updates.length} components!`);
     } catch (error) {
       console.error('Batch update error:', error);
-      alert('Some updates failed. Please check the console for details.');
+      setError('Failed to update some components. Please try again.');
     } finally {
       setUpdating(false);
       setUpdateProgress(0);
     }
   };
 
-  // Refresh function to reload data
   const handleRefresh = async () => {
     setLoading(true);
-    setReviewedItems(new Set());
     await handleComponentAnalysis();
   };
 
@@ -557,48 +480,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              <button
-                onClick={() => setActiveTab('analysis')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'analysis'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Analysis Overview
-              </button>
-              {enhancedCategorization?.high_confidence_suggestions?.length > 0 && (
-                <button
-                  onClick={() => setActiveTab('high-confidence')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'high-confidence'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  High Confidence Review ({enhancedCategorization.high_confidence_suggestions.length})
-                </button>
-              )}
-              {enhancedCategorization?.needs_manual_review?.length > 0 && (
-                <button
-                  onClick={() => setActiveTab('manual-review')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === 'manual-review'
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  Manual Review ({enhancedCategorization.needs_manual_review.length})
-                </button>
-              )}
-            </nav>
-          </div>
-        </div>
-
         {/* Action Buttons */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <div className="flex justify-between items-center mb-4">
@@ -627,408 +508,85 @@ export default function AdminPage() {
             </div>
           )}
           
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={handleComponentAnalysis}
               disabled={analysisLoading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 shadow-lg transition-colors"
+              className="flex flex-col items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100"
             >
-              {analysisLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  Re-analyze Components
-                </>
-              )}
+              <svg className="w-8 h-8 text-blue-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="font-medium text-gray-900">Analyze Data</span>
+              <span className="text-sm text-gray-500">Quality & patterns</span>
             </button>
 
             <button
               onClick={handleMLTraining}
               disabled={mlTrainingLoading}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 shadow-lg transition-colors"
+              className="flex flex-col items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100"
             >
-              {mlTrainingLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Training...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  Run ML Training
-                </>
-              )}
+              <svg className="w-8 h-8 text-green-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span className="font-medium text-gray-900">ML Training</span>
+              <span className="text-sm text-gray-500">Learn & improve</span>
             </button>
 
             <button
               onClick={handleRecategorizeWithLearning}
               disabled={recategorizing}
-              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-400 shadow-lg transition-colors"
+              className="flex flex-col items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100"
             >
-              {recategorizing ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Learning...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  Apply Learning & Re-categorize
-                </>
-              )}
+              <svg className="w-8 h-8 text-purple-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="font-medium text-gray-900">Apply Learning</span>
+              <span className="text-sm text-gray-500">Re-categorize</span>
             </button>
           </div>
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'analysis' && (
-          <div className="space-y-6">
-            {/* Learning Stats */}
-            {learningStats && (
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg shadow-md border border-purple-200">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <svg className="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                  ML Learning Progress
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600">{learningStats.totalFeedback}</div>
-                    <div className="text-sm text-purple-700">Total Feedback</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-green-600">{learningStats.accepts}</div>
-                    <div className="text-sm text-green-700">Accepted Suggestions</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-blue-600">{learningStats.corrections}</div>
-                    <div className="text-sm text-blue-700">Corrections Made</div>
-                  </div>
-                  {learningStats.accuracyImprovement && (
-                    <div className="bg-white p-4 rounded-lg shadow-sm">
-                      <div className="text-2xl font-bold text-orange-600">{learningStats.accuracyImprovement.improvement > 0 ? '+' : ''}{learningStats.accuracyImprovement.improvement}%</div>
-                      <div className="text-sm text-orange-700">Accuracy Improvement</div>
-                    </div>
-                  )}
-                </div>
-                
-                {learningStats.accuracyImprovement && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-semibold text-gray-800 mb-2">Accuracy Trend:</h4>
-                    <div className="flex items-center space-x-4 text-sm">
-                      <span className="text-gray-600">Early: {learningStats.accuracyImprovement.earlyAccuracy}%</span>
-                      <span className="text-gray-400">→</span>
-                      <span className="text-gray-600">Recent: {learningStats.accuracyImprovement.recentAccuracy}%</span>
-                    </div>
-                  </div>
-                )}
-                
-                {learningStats.recentFeedback && learningStats.recentFeedback.length > 0 && (
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-semibold text-gray-800 mb-2">Recent Learning Activity:</h4>
-                    <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {learningStats.recentFeedback.slice(-5).map((feedback: any, index: number) => (
-                        <div key={index} className="text-xs text-gray-600 border-l-2 border-purple-200 pl-2">
-                          {feedback.userCorrection.action === 'accept' ? '✅' : '✏️'} 
-                          {feedback.originalSuggestion.type} → {feedback.userCorrection.type}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Component Analysis Results */}
-            {componentAnalysis && (
-              <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Data Quality Analysis</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-                  <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-3xl font-bold text-blue-600">{componentAnalysis.total_components}</div>
-                    <div className="text-sm text-gray-600">Total Components</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-3xl font-bold text-green-600">{componentAnalysis.data_quality_score.toFixed(1)}%</div>
-                <div className="text-sm text-gray-600">Data Quality Score</div>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg">
-                <div className="text-3xl font-bold text-red-600">{componentAnalysis.uncategorized}</div>
-                <div className="text-sm text-gray-600">Uncategorized</div>
-              </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-3xl font-bold text-orange-600">{componentAnalysis.missing_descriptions}</div>
-                <div className="text-sm text-gray-600">Missing Descriptions</div>
-              </div>
-            </div>
-            
-            {componentAnalysis.recommendations.length > 0 && (
-              <div className="border-t pt-4">
-                <h4 className="font-semibold text-gray-800 mb-3">Recommendations:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-700 space-y-2">
-                  {componentAnalysis.recommendations.map((rec: string, index: number) => (
-                    <li key={index} className="bg-gray-50 p-2 rounded">{rec}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-        )}
-
-        {activeTab === 'analysis' && enhancedCategorization && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Enhanced Categorization Results</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-3xl font-bold text-green-600">{enhancedCategorization.high_confidence_suggestions.length}</div>
-                <div className="text-sm text-gray-600">High Confidence Suggestions</div>
-              </div>
-              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                <div className="text-3xl font-bold text-yellow-600">{enhancedCategorization.needs_manual_review.length}</div>
-                <div className="text-sm text-gray-600">Need Manual Review</div>
-              </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-3xl font-bold text-purple-600">{Object.keys(enhancedCategorization.categorization_summary.by_type).length}</div>
-                <div className="text-sm text-gray-600">Categories Found</div>
-              </div>
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-3xl font-bold text-blue-600">{enhancedCategorization.skipped_components || 0}</div>
-                <div className="text-sm text-gray-600">Already Categorized</div>
-              </div>
-            </div>
-            
-            <div className="border-t pt-4">
-              <h4 className="font-semibold text-gray-800 mb-3">Type Breakdown:</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {Object.entries(enhancedCategorization.categorization_summary.by_type)
-                  .sort(([,a], [,b]) => Number(b) - Number(a))
-                  .map(([type, count]: [string, any]) => (
-                    <div key={type} className="bg-gray-50 p-3 rounded text-center">
-                      <div className="font-semibold text-gray-800">{type}</div>
-                      <div className="text-sm text-gray-600">{count} components</div>
-                    </div>
-                  ))}
-              </div>
-              
-              <h4 className="font-semibold text-gray-800 mb-3">Sub-Category Breakdown:</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(enhancedCategorization.categorization_summary.by_category)
-                  .sort(([,a], [,b]) => Number(b) - Number(a))
-                  .slice(0, 12) // Show top 12 sub-categories
-                  .map(([category, count]: [string, any]) => (
-                    <div key={category} className="bg-blue-50 p-3 rounded text-center">
-                      <div className="font-semibold text-blue-800">{category}</div>
-                      <div className="text-sm text-blue-600">{count} components</div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* High Confidence Review Tab */}
-        {activeTab === 'high-confidence' && enhancedCategorization && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-800">High Confidence Suggestions Review</h3>
-              <div className="text-sm text-gray-600">
-                {reviewedItems.size} of {enhancedCategorization.high_confidence_suggestions.length} reviewed
-              </div>
-            </div>
-            
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {enhancedCategorization.high_confidence_suggestions
-                .filter((item: any) => !reviewedItems.has(item.component_id))
-                .map((item: any, index: number) => (
-                  <div key={item.component_id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{item.description || 'No description'}</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                          {item.make} {item.model}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-sm text-gray-500">Current: {item.current_type} / {item.current_category}</span>
-                          <span className="text-sm text-blue-600 font-medium">→ Suggested: {item.suggested_type} / {item.suggested_category}</span>
-                          <span className="text-sm text-green-600 font-medium">Confidence: {item.confidence}%</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>
-                      </div>
-                      <div className="flex space-x-2 ml-4">
-                        <button
-                          onClick={() => handleHighConfidenceReview(item.component_id, 'accept')}
-                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleHighConfidenceReview(item.component_id, 'reject')}
-                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-                        >
-                          Reject
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditModal({
-                              show: true,
-                              item,
-                              newType: item.suggested_type,
-                              newCategory: item.suggested_category,
-                              customType: '',
-                              customCategory: ''
-                            });
-                          }}
-                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              
-              {enhancedCategorization.high_confidence_suggestions
-                .filter((item: any) => reviewedItems.has(item.component_id)).length > 0 && (
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Reviewed Items</h4>
-                  <div className="space-y-2">
-                    {enhancedCategorization.high_confidence_suggestions
-                      .filter((item: any) => reviewedItems.has(item.component_id))
-                      .map((item: any) => (
-                        <div key={item.component_id} className="bg-gray-50 p-3 rounded text-sm">
-                          <span className="font-medium">{item.description}</span>
-                          <span className="text-gray-600 ml-2">→ {item.suggested_type}</span>
-                          <span className="text-green-600 ml-2">✓ Reviewed</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Manual Review Tab */}
-        {activeTab === 'manual-review' && enhancedCategorization && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-gray-800">Manual Review Interface</h3>
-              <div className="text-sm text-gray-600">
-                {reviewedItems.size} of {enhancedCategorization.needs_manual_review.length} reviewed
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-                <input
-                  type="text"
-                  placeholder="Search by description, make, or model..."
-                  value={manualReviewFilter}
-                  onChange={(e) => setManualReviewFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Suggested Category</label>
-                <select
-                  value={manualReviewCategory}
-                  onChange={(e) => setManualReviewCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">All Categories</option>
-                  {Array.from(new Set(enhancedCategorization.needs_manual_review.map((item: any) => item.suggested_type)) as Set<string>).map((category: string) => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={() => {
-                    setManualReviewFilter('');
-                    setManualReviewCategory('');
-                  }}
-                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            </div>
-            
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {getFilteredManualReviewItems()
-                .filter((item: any) => !reviewedItems.has(item.component_id))
-                .map((item: any, index: number) => (
-                  <ManualReviewItem
-                    key={item.component_id}
-                    item={item}
-                    onCategorize={handleManualReviewCategorization}
-                  />
-                ))}
-            </div>
-          </div>
-        )}
-
         {/* ML Training Results */}
         {mlTrainingResults && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">ML Training Results</h3>
             <div className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-semibold text-blue-800 mb-2">Summary</h4>
-                <p className="text-blue-700">{mlTrainingResults.message}</p>
+                <p className="text-blue-700">
+                  {mlTrainingResults.message || 
+                   `Processed ${mlTrainingResults.categorized_components || 0} components with ML categorization.`}
+                </p>
               </div>
               
               {/* Model Performance Metrics */}
-              {mlTrainingResults.modelInfo && (
+              {mlTrainingResults.modelInfo && mlTrainingResults.modelInfo.performance && (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-gray-800 mb-3">Model Performance</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
                     <div>
                       <span className="text-sm text-gray-600">Accuracy</span>
-                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.accuracy}%</p>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.accuracy || 0}%</p>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600">Precision</span>
-                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.precision}%</p>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.precision || 0}%</p>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600">Recall</span>
-                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.recall}%</p>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.recall || 0}%</p>
                     </div>
                     <div>
                       <span className="text-sm text-gray-600">F1 Score</span>
-                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.f1Score}%</p>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.f1Score || 0}%</p>
                     </div>
                   </div>
                   <div className="text-sm text-gray-600">
-                    <p>Model Version: {mlTrainingResults.modelInfo.version}</p>
-                    <p>Last Training: {new Date(mlTrainingResults.modelInfo.trainingDate).toLocaleDateString()}</p>
-                    <p>Total Predictions: {mlTrainingResults.modelInfo.performance.totalPredictions}</p>
-                    <p>Correct Predictions: {mlTrainingResults.modelInfo.performance.correctPredictions}</p>
+                    <p>Model Version: {mlTrainingResults.modelInfo.version || 'N/A'}</p>
+                    <p>Last Training: {mlTrainingResults.modelInfo.trainingDate ? new Date(mlTrainingResults.modelInfo.trainingDate).toLocaleDateString() : 'N/A'}</p>
+                    <p>Total Predictions: {mlTrainingResults.modelInfo.performance.totalPredictions || 0}</p>
+                    <p>Correct Predictions: {mlTrainingResults.modelInfo.performance.correctPredictions || 0}</p>
                   </div>
                 </div>
               )}
@@ -1040,15 +598,15 @@ export default function AdminPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <span className="text-sm text-blue-600">Total Feedback</span>
-                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.totalFeedback}</p>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.totalFeedback || 0}</p>
                     </div>
                     <div>
                       <span className="text-sm text-blue-600">Accepted</span>
-                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.accepts}</p>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.accepts || 0}</p>
                     </div>
                     <div>
                       <span className="text-sm text-blue-600">Corrections</span>
-                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.corrections}</p>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.corrections || 0}</p>
                     </div>
                     <div>
                       <span className="text-sm text-blue-600">Model Version</span>
@@ -1058,22 +616,27 @@ export default function AdminPage() {
                 </div>
               )}
               
-              {mlTrainingResults.suggestions && mlTrainingResults.suggestions.length > 0 && (
+              {(mlTrainingResults.high_confidence_suggestions || mlTrainingResults.suggestions) && 
+               (mlTrainingResults.high_confidence_suggestions?.length > 0 || mlTrainingResults.suggestions?.length > 0) && (
                 <div>
-                  <h4 className="font-semibold text-gray-800 mb-3">High Confidence Suggestions ({mlTrainingResults.suggestions.length}):</h4>
+                  <h4 className="font-semibold text-gray-800 mb-3">
+                    High Confidence Suggestions ({(mlTrainingResults.high_confidence_suggestions || mlTrainingResults.suggestions || []).length}):
+                  </h4>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {mlTrainingResults.suggestions.map((suggestion: any, index: number) => (
+                    {(mlTrainingResults.high_confidence_suggestions || mlTrainingResults.suggestions || []).map((suggestion: any, index: number) => (
                       <div key={index} className="bg-gray-50 p-3 rounded border-l-4 border-green-500">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-medium text-gray-800">
-                              {suggestion.current_type} → {suggestion.suggested_type}
+                              {suggestion.current_type || 'Unknown'} → {suggestion.suggested_type || 'Unknown'}
                             </div>
-                            <div className="text-sm text-gray-600">{suggestion.description}</div>
-                            <div className="text-xs text-gray-500">{suggestion.reasoning}</div>
+                            <div className="text-sm text-gray-600">{suggestion.description || 'No description'}</div>
+                            <div className="text-xs text-gray-500">
+                              {Array.isArray(suggestion.reasoning) ? suggestion.reasoning.join(', ') : suggestion.reasoning || 'No reasoning provided'}
+                            </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-semibold text-green-600">{suggestion.confidence}%</div>
+                            <div className="text-sm font-semibold text-green-600">{suggestion.confidence || 0}%</div>
                           </div>
                         </div>
                       </div>
@@ -1081,12 +644,28 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+              
+              {/* No suggestions message */}
+              {(!mlTrainingResults.high_confidence_suggestions || mlTrainingResults.high_confidence_suggestions.length === 0) && 
+               (!mlTrainingResults.suggestions || mlTrainingResults.suggestions.length === 0) && (
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">No High Confidence Suggestions</h4>
+                  <p className="text-yellow-700">
+                    No high confidence suggestions were generated. This could be because:
+                  </p>
+                  <ul className="text-yellow-600 text-sm mt-2 list-disc list-inside">
+                    <li>All components are already properly categorized</li>
+                    <li>The model needs more training data</li>
+                    <li>Components have low confidence scores</li>
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {recategorizationResults && (
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Learning-Based Re-categorization Results</h3>
             <div className="space-y-4">
               <div className="bg-green-50 p-4 rounded-lg">
@@ -1129,191 +708,89 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Edit Modal for High Confidence Items */}
-        {editModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Edit Categorization</h3>
-              
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>{editModal.item.description}</strong><br/>
-                  {editModal.item.make} {editModal.item.model}
-                </p>
+        {/* Component Analysis Results */}
+        {componentAnalysis && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Component Data Analysis</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Data Quality</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Total Components</span>
+                    <span className="font-medium">{componentAnalysis.total_components}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Categorized</span>
+                    <span className="font-medium text-green-600">{componentAnalysis.categorized_count}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Uncategorized</span>
+                    <span className="font-medium text-red-600">{componentAnalysis.uncategorized_count}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Categorization Rate</span>
+                    <span className="font-medium">{componentAnalysis.categorization_rate}%</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type (Main Category)</label>
-                  <select
-                    value={editModal.newType}
-                    onChange={(e) => {
-                      setEditModal({
-                        ...editModal,
-                        newType: e.target.value,
-                        newCategory: 'Uncategorized' // Reset sub-category when type changes
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Audio">Audio</option>
-                    <option value="Video">Video</option>
-                    <option value="Control">Control</option>
-                    <option value="Switcher">Switcher</option>
-                    <option value="Cabling">Cabling</option>
-                    <option value="Mounting">Mounting</option>
-                    <option value="Network">Network</option>
-                    <option value="Power">Power</option>
-                    <option value="Lighting">Lighting</option>
-                    <option value="Rack & Enclosures">Rack & Enclosures</option>
-                    <option value="Tools & Accessories">Tools & Accessories</option>
-                    <option value="Uncategorized">Uncategorized</option>
-                    <option value="Custom">Custom</option>
-                  </select>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Cost Analysis</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Total Cost</span>
+                    <span className="font-medium">${componentAnalysis.cost_analysis.total_cost.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Average Cost</span>
+                    <span className="font-medium">${componentAnalysis.cost_analysis.average_cost.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Cost Range</span>
+                    <span className="font-medium">${componentAnalysis.cost_analysis.cost_range.min} - ${componentAnalysis.cost_analysis.cost_range.max}</span>
+                  </div>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category (Sub-Category)</label>
-                  <select
-                    value={editModal.newCategory}
-                    onChange={(e) => {
-                      setEditModal({
-                        ...editModal,
-                        newCategory: e.target.value
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {getSubCategories(editModal.newType).map(category => (
-                      <option key={category} value={category}>{category}</option>
+              <div>
+                <h4 className="font-semibold text-gray-800 mb-3">Top Categories</h4>
+                <div className="space-y-2">
+                  {Object.entries(componentAnalysis.category_distribution)
+                    .sort(([,a], [,b]) => (b as number) - (a as number))
+                    .slice(0, 5)
+                    .map(([category, count]) => (
+                      <div key={category} className="flex justify-between">
+                        <span className="text-sm text-gray-600">{category}</span>
+                        <span className="font-medium">{count as number}</span>
+                      </div>
                     ))}
-                  </select>
-                </div>
-
-                {/* Custom Type Input */}
-                {editModal.newType === 'Custom' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Type</label>
-                    <input
-                      type="text"
-                      placeholder="Enter custom type..."
-                      value={editModal.customType}
-                      onChange={(e) => {
-                        setEditModal({
-                          ...editModal,
-                          customType: e.target.value
-                        });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
-
-                {/* Custom Category Input */}
-                {editModal.newCategory === 'Custom' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Category</label>
-                    <input
-                      type="text"
-                      placeholder="Enter custom category..."
-                      value={editModal.customCategory}
-                      onChange={(e) => {
-                        setEditModal({
-                          ...editModal,
-                          customCategory: e.target.value
-                        });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
-
-                {/* Direct Text Input for Type (Alternative to dropdown) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type (Main Category) - Or enter custom text
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter type or select from dropdown above..."
-                    value={editModal.newType === 'Custom' ? editModal.customType : editModal.newType}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setEditModal({
-                        ...editModal,
-                        newType: 'Custom',
-                        customType: value
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Direct Text Input for Category (Alternative to dropdown) */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category (Sub-Category) - Or enter custom text
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter category or select from dropdown above..."
-                    value={editModal.newCategory === 'Custom' ? editModal.customCategory : editModal.newCategory}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setEditModal({
-                        ...editModal,
-                        newCategory: 'Custom',
-                        customCategory: value
-                      });
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
                 </div>
               </div>
+            </div>
+          </div>
+        )}
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setEditModal(null)}
-                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    // Get the final values from either dropdown or direct text input
-                    let finalType = editModal.newType;
-                    let finalCategory = editModal.newCategory;
-                    
-                    // If type is Custom, use the custom text input value
-                    if (editModal.newType === 'Custom') {
-                      finalType = editModal.customType.trim();
-                      if (!finalType) {
-                        alert('Please enter a type');
-                        return;
-                      }
-                    }
-                    
-                    // If category is Custom, use the custom text input value
-                    if (editModal.newCategory === 'Custom') {
-                      finalCategory = editModal.customCategory.trim();
-                      if (!finalCategory) {
-                        alert('Please enter a category');
-                        return;
-                      }
-                    }
-                    
-                    await handleHighConfidenceReview(
-                      editModal.item.component_id, 
-                      'edit', 
-                      finalType, 
-                      finalCategory
-                    );
-                    setEditModal(null);
-                  }}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  Save Changes
-                </button>
+        {/* Learning Statistics */}
+        {learningStats && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Learning Statistics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{learningStats.totalFeedback || 0}</div>
+                <div className="text-sm text-gray-600">Total Feedback</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{learningStats.accepts || 0}</div>
+                <div className="text-sm text-gray-600">Accepted</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{learningStats.corrections || 0}</div>
+                <div className="text-sm text-gray-600">Corrections</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{learningStats.modelVersion || 'N/A'}</div>
+                <div className="text-sm text-gray-600">Model Version</div>
               </div>
             </div>
           </div>
