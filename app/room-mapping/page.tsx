@@ -341,17 +341,32 @@ export default function RoomMappingPage() {
       for (const roomTypeId of roomTypeIds) {
         const roomType = existingRoomTypes.find(rt => rt.id.toString() === roomTypeId);
         if (roomType) {
+          console.log(`Fetching configurations for room type: ${roomType.name} (ID: ${roomType.id})`);
+          
           // Fetch room configurations for this room type
           const response = await apiService.getRoomConfigurations({ 
-            filters: { room_type: roomType.id }
+            filters: {
+              room_type: {
+                $eq: roomType.id
+              }
+            },
+            populate: '*'
           });
+          
+          console.log(`API Response for ${roomType.name}:`, response.data);
+          
+          // The configurations are actually the components for this room type
+          const configurations = response.data?.data || [];
+          console.log(`Found ${configurations.length} configurations for ${roomType.name}:`, configurations);
+          
           configs.push({
             roomType,
-            configurations: response.data?.data || []
+            configurations: configurations
           });
         }
       }
       setRoomConfigurations(configs);
+      console.log('Final room configurations:', configs);
     } catch (error) {
       console.error('Error fetching room configurations:', error);
     } finally {
@@ -957,27 +972,36 @@ export default function RoomMappingPage() {
 
                         {/* Room Configurations */}
                         <div className="mb-4">
-                          <h5 className="text-sm font-medium text-gray-700 mb-2">Available Configurations</h5>
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Room Components</h5>
                           {configData.configurations.length > 0 ? (
                             <div className="space-y-2">
-                              {configData.configurations.map((config: any, configIndex: number) => (
-                                <div key={configIndex} className="bg-white rounded border p-3">
-                                  <div className="font-medium text-sm text-gray-800 mb-2">
-                                    Configuration {configIndex + 1}
-                                  </div>
-                                  <div className="text-xs text-gray-600 space-y-1">
-                                    <div>Components: {config.components?.length || 0}</div>
-                                    <div>Total Cost: ${config.total_cost || 0}</div>
-                                    {config.description && (
-                                      <div>Description: {config.description}</div>
-                                    )}
-                                  </div>
+                              <div className="bg-white rounded border p-3">
+                                <div className="font-medium text-sm text-gray-800 mb-2">
+                                  Total Components: {configData.configurations.length}
                                 </div>
-                              ))}
+                                <div className="text-xs text-gray-600 space-y-1">
+                                  <div>Total Cost: ${configData.configurations.reduce((sum: number, comp: any) => sum + (comp.unit_cost || 0) * (comp.qty || 1), 0)}</div>
+                                  <div>Average Cost per Component: ${Math.round(configData.configurations.reduce((sum: number, comp: any) => sum + (comp.unit_cost || 0), 0) / configData.configurations.length)}</div>
+                                </div>
+                              </div>
+                              
+                              {/* Component List */}
+                              <div className="max-h-32 overflow-y-auto">
+                                {configData.configurations.map((component: any, compIndex: number) => (
+                                  <div key={compIndex} className="bg-gray-100 rounded p-2 mb-1">
+                                    <div className="text-xs text-gray-800 font-medium">
+                                      {component.description || component.make + ' ' + component.model}
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      {component.make} {component.model} • Qty: {component.qty || 1} • ${component.unit_cost || 0}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           ) : (
                             <div className="text-sm text-gray-500 italic">
-                              No configurations available for this room type
+                              No components available for this room type
                             </div>
                           )}
                         </div>
@@ -988,11 +1012,8 @@ export default function RoomMappingPage() {
                             <h5 className="text-sm font-medium text-gray-700 mb-2">Component Categories</h5>
                             <div className="space-y-1 text-xs text-gray-600">
                               {(() => {
-                                const allComponents = configData.configurations.flatMap((config: any) => 
-                                  config.components || []
-                                );
-                                const categories = allComponents.reduce((acc: any, comp: any) => {
-                                  const category = comp.component_category || 'Uncategorized';
+                                const categories = configData.configurations.reduce((acc: any, comp: any) => {
+                                  const category = comp.component_category || comp.category || 'Uncategorized';
                                   acc[category] = (acc[category] || 0) + 1;
                                   return acc;
                                 }, {});
@@ -1020,17 +1041,17 @@ export default function RoomMappingPage() {
                       <div className="text-blue-600">{roomConfigurations.length}</div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Total Configurations</div>
+                      <div className="font-medium text-blue-800">Total Components</div>
                       <div className="text-green-600">
                         {roomConfigurations.reduce((total, config) => total + config.configurations.length, 0)}
                       </div>
                     </div>
                     <div>
-                      <div className="font-medium text-blue-800">Total Components</div>
+                      <div className="font-medium text-blue-800">Total Cost</div>
                       <div className="text-blue-600">
-                        {roomConfigurations.reduce((total, config) => 
-                          total + config.configurations.reduce((configTotal: number, conf: any) => 
-                            configTotal + (conf.components?.length || 0), 0
+                        ${roomConfigurations.reduce((total, config) => 
+                          total + config.configurations.reduce((compTotal: number, comp: any) => 
+                            compTotal + (comp.unit_cost || 0) * (comp.qty || 1), 0
                           ), 0
                         )}
                       </div>
@@ -1039,8 +1060,8 @@ export default function RoomMappingPage() {
                       <div className="font-medium text-blue-800">Avg Cost per Room</div>
                       <div className="text-yellow-600">
                         ${Math.round(roomConfigurations.reduce((total, config) => 
-                          total + config.configurations.reduce((configTotal: number, conf: any) => 
-                            configTotal + (conf.total_cost || 0), 0
+                          total + config.configurations.reduce((compTotal: number, comp: any) => 
+                            compTotal + (comp.unit_cost || 0) * (comp.qty || 1), 0
                           ), 0
                         ) / Math.max(roomConfigurations.length, 1))}
                       </div>
