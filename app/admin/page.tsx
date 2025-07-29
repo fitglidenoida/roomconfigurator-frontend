@@ -340,9 +340,11 @@ export default function AdminPage() {
         if (component) {
           // Use the component_id which should be the documentId from the ML service
           await updateComponentCategorization(componentId, component.suggested_type, component.suggested_category);
+          console.log('✅ Component updated in database:', componentId, component.suggested_type, component.suggested_category);
         }
       } else if (action === 'edit' && newType && newCategory) {
         await updateComponentCategorization(componentId, newType, newCategory);
+        console.log('✅ Component updated in database:', componentId, newType, newCategory);
       }
       // For 'reject', we don't update the database - just mark as reviewed
       
@@ -389,6 +391,12 @@ export default function AdminPage() {
       
       setReviewedItems(prev => new Set([...prev, componentId]));
       console.log('High confidence review completed:', { componentId, action, newType, newCategory });
+      
+      // Refresh the data to show updated components
+      if (action === 'accept' || action === 'edit') {
+        console.log('🔄 Refreshing data after component update...');
+        await handleRefresh();
+      }
     } catch (error) {
       console.error('Error in high confidence review:', error);
       alert('Failed to update component. Please try again.');
