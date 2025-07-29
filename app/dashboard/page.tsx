@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchAllPages } from '../lib/api';
-import { autoCategorizeComponents } from '../lib/mlService';
+
 
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
@@ -35,8 +35,7 @@ export default function PMDashboard() {
     costOptimization: [],
     recentProjects: []
   });
-  const [mlTrainingResults, setMlTrainingResults] = useState<any>(null);
-  const [mlTrainingLoading, setMlTrainingLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedProject] = useState<string>('');
@@ -465,20 +464,7 @@ export default function PMDashboard() {
     return formatCurrency(amount, projectCurrency);
   };
 
-  // ML Training for uncategorized components
-  const handleMLTraining = async () => {
-    setMlTrainingLoading(true);
-    try {
-      const avComponents = await fetchAllPages('/av-components');
-      const results = await autoCategorizeComponents(avComponents);
-      setMlTrainingResults(results);
-      console.log('ML Training completed:', results);
-    } catch (error) {
-      console.error('ML Training error:', error);
-    } finally {
-      setMlTrainingLoading(false);
-    }
-  };
+
 
   // Generate cost optimization suggestions based on current project's heavy-spend components
   const generateCostOptimizationSuggestions = (avComponents: any[], roomConfigs: any[], totalProjectCost: number) => {
@@ -579,19 +565,13 @@ export default function PMDashboard() {
           <Link href="/dashboard" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/dashboard' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
             Dashboard
           </Link>
-          <Link href="/project-data" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/project-data' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            Project Data
+          <Link href="/summary" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/summary' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+            Cost Estimation
           </Link>
-          <Link href="/room-mapping" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/room-mapping' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            Room Mapping
+          <Link href="/data-input" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/data-input' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+            Data Input
           </Link>
-          <Link href="/room-configuration" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/room-configuration' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            Room Configuration
-          </Link>
-          <Link href="/variants" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/variants' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
-            Variants
-          </Link>
-          <Link href="/" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Link href="/configurator" className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${pathname === '/configurator' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
             Configurator
           </Link>
         </div>
@@ -630,6 +610,25 @@ export default function PMDashboard() {
             <div className="text-3xl font-bold">⚡</div>
             <div className="text-sm text-blue-100">Fast Track</div>
           </div>
+        </div>
+      </div>
+
+      {/* Admin Link */}
+      <div className="bg-white p-4 rounded-lg shadow-md mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">Data Management</h2>
+            <p className="text-gray-600 text-sm">Component analysis and categorization tools</p>
+          </div>
+          <Link href="/admin">
+            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Admin Panel
+            </button>
+          </Link>
         </div>
       </div>
 

@@ -290,3 +290,199 @@ export const autoCategorizeComponents = async (components: any[]) => {
     total_suggestions: trainingResults.suggestions.length
   };
 }; 
+
+// Comprehensive Component Analysis
+export const analyzeComponentData = async (components: any[]) => {
+  console.log('Starting comprehensive component analysis...');
+  
+  const analysis = {
+    total_components: components.length,
+    missing_descriptions: 0,
+    missing_names: 0,
+    uncategorized: 0,
+    poorly_categorized: 0,
+    categorization_breakdown: {} as Record<string, number>,
+    data_quality_score: 0,
+    recommendations: [] as string[]
+  };
+
+  // Analyze each component
+  components.forEach(component => {
+    // Check for missing data
+    if (!component.description || component.description === 'undefined') {
+      analysis.missing_descriptions++;
+    }
+    if (!component.make || !component.model) {
+      analysis.missing_names++;
+    }
+    
+    // Check categorization
+    const type = component.component_type || component.component_category || 'Uncategorized';
+    if (type === 'Uncategorized' || type === 'AV Equipment' || type === '') {
+      analysis.uncategorized++;
+    } else if (type === 'AV Equipment') {
+      analysis.poorly_categorized++;
+    }
+    
+    // Build categorization breakdown
+    analysis.categorization_breakdown[type] = (analysis.categorization_breakdown[type] || 0) + 1;
+  });
+
+  // Calculate data quality score
+  const totalIssues = analysis.missing_descriptions + analysis.missing_names + analysis.uncategorized + analysis.poorly_categorized;
+  analysis.data_quality_score = Math.max(0, 100 - (totalIssues / components.length) * 100);
+
+  // Generate recommendations
+  if (analysis.missing_descriptions > 0) {
+    analysis.recommendations.push(`Add descriptions for ${analysis.missing_descriptions} components`);
+  }
+  if (analysis.missing_names > 0) {
+    analysis.recommendations.push(`Add make/model for ${analysis.missing_names} components`);
+  }
+  if (analysis.uncategorized > 0) {
+    analysis.recommendations.push(`Categorize ${analysis.uncategorized} uncategorized components`);
+  }
+  if (analysis.poorly_categorized > 0) {
+    analysis.recommendations.push(`Improve categorization for ${analysis.poorly_categorized} components`);
+  }
+
+  console.log('Component analysis results:', analysis);
+  return analysis;
+};
+
+// Enhanced categorization with internet research capability
+export const enhancedCategorizeComponents = async (components: any[]) => {
+  console.log('Starting enhanced component categorization...');
+  
+  // Enhanced categorization patterns with more specific keywords
+  const enhancedPatterns = {
+    'Displays': {
+      patterns: ['display', 'tv', 'monitor', 'screen', 'panel', 'lcd', 'oled', 'led', 'projection', 'video wall', 'digital signage'],
+      examples: ['NEC Display', 'Samsung TV', 'LG Monitor', 'Video Wall Panel']
+    },
+    'Audio': {
+      patterns: ['speaker', 'audio', 'sound', 'mic', 'microphone', 'amplifier', 'mixer', 'processor', 'dsp', 'equalizer', 'crossover'],
+      examples: ['JBL Speaker', 'Shure Microphone', 'Crown Amplifier']
+    },
+    'Cabling': {
+      patterns: ['cable', 'wire', 'connector', 'hdmi', 'vga', 'dvi', 'displayport', 'ethernet', 'fiber', 'cat6', 'cat7', 'patch'],
+      examples: ['HDMI Cable', 'Ethernet Cable', 'Fiber Optic']
+    },
+    'Mounting': {
+      patterns: ['mount', 'bracket', 'stand', 'support', 'holder', 'clamp', 'rail', 'ceiling', 'wall', 'floor'],
+      examples: ['Chief Mount', 'Wall Bracket', 'Ceiling Mount']
+    },
+    'Control Systems': {
+      patterns: ['switch', 'matrix', 'controller', 'processor', 'dsp', 'control', 'automation', 'crestron', 'amx', 'extron'],
+      examples: ['Crestron Controller', 'Extron Matrix', 'AMX System']
+    },
+    'Projection': {
+      patterns: ['projector', 'lens', 'screen', 'throw', 'distance', 'lumens', 'resolution', '4k', 'hd'],
+      examples: ['Epson Projector', 'Projection Screen', 'Projector Lens']
+    },
+    'Video': {
+      patterns: ['camera', 'video', 'streaming', 'recording', 'capture', 'ptz', 'ip camera', 'webcam'],
+      examples: ['PTZ Camera', 'IP Camera', 'Video Recorder']
+    },
+    'Lighting': {
+      patterns: ['light', 'led', 'lamp', 'illumination', 'ambient', 'dimmer', 'fixture', 'bulb'],
+      examples: ['LED Light', 'Dimmer Switch', 'Light Fixture']
+    },
+    'Processing': {
+      patterns: ['processor', 'dsp', 'amplifier', 'mixer', 'equalizer', 'crossover', 'audio processor', 'video processor'],
+      examples: ['Audio Processor', 'DSP Unit', 'Video Processor']
+    },
+    'Rack & Enclosures': {
+      patterns: ['rack', 'cabinet', 'enclosure', 'housing', 'case', 'chassis', 'server rack', 'equipment rack'],
+      examples: ['Server Rack', 'Equipment Cabinet', 'Rack Mount']
+    },
+    'Network': {
+      patterns: ['switch', 'router', 'ethernet', 'wifi', 'network', 'poe', 'wireless', 'access point', 'firewall'],
+      examples: ['Network Switch', 'WiFi Router', 'Access Point']
+    },
+    'Power': {
+      patterns: ['power', 'supply', 'ups', 'battery', 'adapter', 'transformer', 'pdu', 'power distribution'],
+      examples: ['UPS System', 'Power Supply', 'PDU Unit']
+    },
+    'Software': {
+      patterns: ['software', 'license', 'subscription', 'app', 'application', 'platform', 'management'],
+      examples: ['Software License', 'Management Platform', 'Application']
+    },
+    'Tools & Accessories': {
+      patterns: ['tool', 'accessory', 'adapter', 'converter', 'splitter', 'extender', 'repeater'],
+      examples: ['HDMI Splitter', 'Adapter', 'Extension Cable']
+    }
+  };
+
+  const categorizationResults = components.map(component => {
+    const description = (component.description || '').toLowerCase();
+    const make = (component.make || '').toLowerCase();
+    const model = (component.model || '').toLowerCase();
+    
+    let bestMatch = 'Uncategorized';
+    let bestScore = 0;
+    let reasoning = '';
+
+    // Enhanced matching using multiple fields
+    Object.entries(enhancedPatterns).forEach(([category, config]) => {
+      let score = 0;
+      
+      // Check description
+      config.patterns.forEach(pattern => {
+        if (description.includes(pattern)) score += 2;
+        if (make.includes(pattern)) score += 1;
+        if (model.includes(pattern)) score += 1;
+      });
+      
+      // Check for brand-specific patterns
+      if (category === 'Control Systems' && (make.includes('crestron') || make.includes('amx') || make.includes('extron'))) {
+        score += 5;
+      }
+      if (category === 'Mounting' && (make.includes('chief') || make.includes('peerless'))) {
+        score += 3;
+      }
+      if (category === 'Audio' && (make.includes('jbl') || make.includes('shure') || make.includes('crown'))) {
+        score += 3;
+      }
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = category;
+        reasoning = `Matched ${config.patterns.filter(p => 
+          description.includes(p) || make.includes(p) || model.includes(p)
+        ).join(', ')}`;
+      }
+    });
+
+    return {
+      component_id: component.id,
+      current_type: component.component_type || 'Uncategorized',
+      suggested_type: bestMatch,
+      confidence: Math.min(bestScore * 10, 100),
+      description: component.description,
+      make: component.make,
+      model: component.model,
+      reasoning: bestScore > 0 ? reasoning : 'No clear pattern match',
+      needs_manual_review: bestScore < 3
+    };
+  });
+
+  // Filter high-confidence suggestions
+  const highConfidenceSuggestions = categorizationResults.filter(s => s.confidence >= 60);
+  const needsManualReview = categorizationResults.filter(s => s.needs_manual_review);
+
+  console.log(`Enhanced categorization complete: ${highConfidenceSuggestions.length} high-confidence, ${needsManualReview.length} need manual review`);
+
+  return {
+    total_components: components.length,
+    categorization_results: categorizationResults,
+    high_confidence_suggestions: highConfidenceSuggestions,
+    needs_manual_review: needsManualReview,
+    categorization_summary: Object.fromEntries(
+      Object.entries(enhancedPatterns).map(([category, config]) => [
+        category, 
+        categorizationResults.filter(r => r.suggested_type === category).length
+      ])
+    )
+  };
+}; 

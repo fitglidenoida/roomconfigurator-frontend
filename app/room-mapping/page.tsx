@@ -48,6 +48,8 @@ export default function RoomMappingPage() {
   const [showOtherRegions, setShowOtherRegions] = useState(false);
   const [mappingProgress, setMappingProgress] = useState(0);
   const [projectCurrency, setProjectCurrency] = useState<string>('USD');
+  const [selectedRoomsForComparison, setSelectedRoomsForComparison] = useState<string[]>([]);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
   const pathname = usePathname();
 
   // Load SRM data and project details from sessionStorage
@@ -307,6 +309,34 @@ export default function RoomMappingPage() {
     window.location.href = '/room-configuration';
   };
 
+  // Room comparison functions
+  const handleRoomSelectionForComparison = (srmRoomId: string) => {
+    setSelectedRoomsForComparison(prev => {
+      if (prev.includes(srmRoomId)) {
+        return prev.filter(id => id !== srmRoomId);
+      } else if (prev.length < 3) {
+        return [...prev, srmRoomId];
+      }
+      return prev;
+    });
+  };
+
+  const clearRoomSelection = () => {
+    setSelectedRoomsForComparison([]);
+  };
+
+  const getSelectedRoomsData = () => {
+    return selectedRoomsForComparison.map(srmRoomId => {
+      const srmRoom = srmRooms.find(room => room.id === srmRoomId);
+      const mapping = roomMappings.find(m => m.srm_room_id === srmRoomId);
+      return {
+        srmRoom,
+        mapping,
+        selectedRoomType: mapping?.selected_room_type
+      };
+    }).filter(data => data.srmRoom);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Header */}
@@ -546,7 +576,16 @@ export default function RoomMappingPage() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{room.room_name}</h4>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedRoomsForComparison.includes(room.id)}
+                              onChange={() => handleRoomSelectionForComparison(room.id)}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              disabled={selectedRoomsForComparison.length >= 3 && !selectedRoomsForComparison.includes(room.id)}
+                            />
+                            <h4 className="font-medium text-gray-900">{room.room_name}</h4>
+                          </div>
                           <p className="text-sm text-gray-600 mt-1">{room.description}</p>
                           <div className="flex items-center space-x-4 mt-2">
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -819,6 +858,144 @@ export default function RoomMappingPage() {
             <li>• All rooms must be mapped before proceeding to the next step</li>
           </ul>
         </div>
+
+        {/* Room Comparison Controls */}
+        {selectedRoomsForComparison.length > 0 && (
+          <div className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">
+                  Room Comparison ({selectedRoomsForComparison.length}/3 selected)
+                </h3>
+                <p className="text-sm text-green-700 mt-1">
+                  Compare selected rooms to see detailed breakdowns and configurations
+                </p>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={clearRoomSelection}
+                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  onClick={() => setShowComparisonModal(true)}
+                  className="px-6 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                >
+                  Compare Selected
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Room Comparison Modal */}
+        {showComparisonModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+              <div className="flex justify-between items-center p-6 border-b">
+                <h3 className="text-xl font-semibold text-gray-800">Room Type Comparison</h3>
+                <button
+                  onClick={() => setShowComparisonModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {getSelectedRoomsData().map((roomData, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-800 mb-3">{roomData.srmRoom?.room_name}</h4>
+                      
+                      {/* SRM Room Details */}
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">SRM Details</h5>
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <div>Type: {roomData.srmRoom?.space_type}</div>
+                          <div>Count: {roomData.srmRoom?.count} units</div>
+                          <div>Category: {roomData.srmRoom?.category}</div>
+                          {roomData.srmRoom?.description && (
+                            <div>Description: {roomData.srmRoom.description}</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Mapping Status */}
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Mapping Status</h5>
+                        <div className="text-sm">
+                          {roomData.mapping?.status === 'mapped' ? (
+                            <div className="text-green-600">
+                              ✓ Mapped to: {roomData.selectedRoomType?.name}
+                            </div>
+                          ) : roomData.mapping?.status === 'new_room' ? (
+                            <div className="text-blue-600">
+                              ✨ New Room: {roomData.mapping?.new_room_name}
+                            </div>
+                          ) : roomData.mapping?.status === 'skipped' ? (
+                            <div className="text-gray-600">
+                              ⏭️ Skipped: {roomData.mapping?.skip_reason}
+                            </div>
+                          ) : (
+                            <div className="text-yellow-600">
+                              ⏳ Unmapped
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Selected Room Type Details */}
+                      {roomData.selectedRoomType && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Selected Room Type</h5>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div>Name: {roomData.selectedRoomType.name}</div>
+                            <div>Type: {roomData.selectedRoomType.room_type}</div>
+                            <div>Sub-type: {roomData.selectedRoomType.sub_type}</div>
+                            <div>Region: {roomData.selectedRoomType.region}</div>
+                            <div>Country: {roomData.selectedRoomType.country}</div>
+                            <div>Default PAX: {roomData.selectedRoomType.default_pax}</div>
+                            <div>Configurable: {roomData.selectedRoomType.is_configurable ? 'Yes' : 'No'}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Comparison Summary */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-2">Comparison Summary</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="font-medium text-blue-800">Total Rooms</div>
+                      <div className="text-blue-600">{getSelectedRoomsData().length}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-blue-800">Mapped</div>
+                      <div className="text-green-600">
+                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'mapped').length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-blue-800">New Rooms</div>
+                      <div className="text-blue-600">
+                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'new_room').length}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-blue-800">Unmapped</div>
+                      <div className="text-yellow-600">
+                        {getSelectedRoomsData().filter(r => r.mapping?.status === 'unmapped').length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
