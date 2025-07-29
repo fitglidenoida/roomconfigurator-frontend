@@ -344,16 +344,31 @@ export default function AdminPage() {
       
       // Store learning feedback for ML improvement
       if (component) {
+        let correctionType = 'Uncategorized';
+        let correctionCategory = 'Uncategorized';
+        
+        if (action === 'accept') {
+          correctionType = component.suggested_type || 'Uncategorized';
+          correctionCategory = component.suggested_category || 'Uncategorized';
+        } else if (action === 'edit' && newType && newCategory) {
+          correctionType = newType;
+          correctionCategory = newCategory;
+        } else if (action === 'reject') {
+          // For reject, we keep the original suggestion but mark it as rejected
+          correctionType = component.suggested_type || 'Uncategorized';
+          correctionCategory = component.suggested_category || 'Uncategorized';
+        }
+        
         const feedback = {
           componentId,
           originalSuggestion: {
-            type: component.suggested_type,
-            category: component.suggested_category,
-            confidence: component.confidence
+            type: component.suggested_type || 'Uncategorized',
+            category: component.suggested_category || 'Uncategorized',
+            confidence: component.confidence || 0
           },
           userCorrection: {
-            type: action === 'accept' ? component.suggested_type : (newType || 'rejected'),
-            category: action === 'accept' ? component.suggested_category : (newCategory || 'rejected'),
+            type: correctionType,
+            category: correctionCategory,
             action: action as 'accept' | 'reject' | 'edit'
           },
           componentData: {
@@ -364,6 +379,7 @@ export default function AdminPage() {
           timestamp: new Date()
         };
         
+        console.log('Storing feedback:', feedback);
         storeLearningFeedback(feedback);
       }
       
@@ -392,8 +408,8 @@ export default function AdminPage() {
           confidence: 0
         },
         userCorrection: {
-          type,
-          category,
+          type: type || 'Uncategorized',
+          category: category || 'Uncategorized',
           action: 'edit' as const
         },
         componentData: {
@@ -404,6 +420,7 @@ export default function AdminPage() {
         timestamp: new Date()
       };
       
+      console.log('Storing manual review feedback:', feedback);
       storeLearningFeedback(feedback);
       
       // Remove from manual review list
