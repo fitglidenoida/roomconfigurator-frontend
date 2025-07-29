@@ -287,110 +287,132 @@ class SupervisedLearningModel {
     
     // Process corrections (user edits/rejections)
     corrections.forEach(feedback => {
-      const { userCorrection, componentData } = feedback;
-      let type = userCorrection.type;
-      let category = userCorrection.category;
-      
-      // Map custom categories to standard ones
-      if (categoryMappings[type]) {
-        type = categoryMappings[type].type;
-        category = categoryMappings[type].category;
-      }
-      
-      const features = this.extractFeatures(
-        componentData.description,
-        componentData.make,
-        componentData.model
-      );
-
-      if (!newPatterns[type]) {
-        newPatterns[type] = {
-          patterns: [],
-          examples: [],
-          subCategories: {},
-          confidence: 0,
-          trainingData: 0
-        };
-      }
-
-      // Add features as patterns with higher weight for corrections
-      features.forEach(feature => {
-        if (!newPatterns[type].patterns.includes(feature)) {
-          newPatterns[type].patterns.push(feature);
+      try {
+        const { userCorrection, componentData } = feedback;
+        
+        // Validate feedback data
+        if (!userCorrection || !componentData) {
+          console.warn('Skipping invalid feedback item:', feedback);
+          return;
         }
-      });
-
-      // Add sub-category patterns
-      if (!newPatterns[type].subCategories[category]) {
-        newPatterns[type].subCategories[category] = [];
-      }
-      features.forEach(feature => {
-        if (!newPatterns[type].subCategories[category].includes(feature)) {
-          newPatterns[type].subCategories[category].push(feature);
+        
+        let type = userCorrection.type || 'Uncategorized';
+        let category = userCorrection.category || 'Uncategorized';
+        
+        // Map custom categories to standard ones
+        if (categoryMappings[type]) {
+          type = categoryMappings[type].type;
+          category = categoryMappings[type].category;
         }
-      });
+        
+        const features = this.extractFeatures(
+          componentData.description || '',
+          componentData.make || '',
+          componentData.model || ''
+        );
 
-      // Add example
-      const example = `${componentData.make} ${componentData.model}`;
-      if (!newPatterns[type].examples.includes(example)) {
-        newPatterns[type].examples.push(example);
+        if (!newPatterns[type]) {
+          newPatterns[type] = {
+            patterns: [],
+            examples: [],
+            subCategories: {},
+            confidence: 0,
+            trainingData: 0
+          };
+        }
+
+        // Add features as patterns with higher weight for corrections
+        features.forEach(feature => {
+          if (!newPatterns[type].patterns.includes(feature)) {
+            newPatterns[type].patterns.push(feature);
+          }
+        });
+
+        // Add sub-category patterns
+        if (!newPatterns[type].subCategories[category]) {
+          newPatterns[type].subCategories[category] = [];
+        }
+        features.forEach(feature => {
+          if (!newPatterns[type].subCategories[category].includes(feature)) {
+            newPatterns[type].subCategories[category].push(feature);
+          }
+        });
+
+        // Add example
+        const example = `${componentData.make || ''} ${componentData.model || ''}`.trim();
+        if (example && !newPatterns[type].examples.includes(example)) {
+          newPatterns[type].examples.push(example);
+        }
+
+        newPatterns[type].trainingData++;
+      } catch (error) {
+        console.error('Error processing correction feedback:', error, feedback);
       }
-
-      newPatterns[type].trainingData++;
     });
     
     // Process accepts (reinforce existing patterns)
     accepts.forEach(feedback => {
-      const { userCorrection, componentData } = feedback;
-      let type = userCorrection.type;
-      let category = userCorrection.category;
-      
-      // Map custom categories to standard ones
-      if (categoryMappings[type]) {
-        type = categoryMappings[type].type;
-        category = categoryMappings[type].category;
-      }
-      
-      const features = this.extractFeatures(
-        componentData.description,
-        componentData.make,
-        componentData.model
-      );
-
-      if (!newPatterns[type]) {
-        newPatterns[type] = {
-          patterns: [],
-          examples: [],
-          subCategories: {},
-          confidence: 0,
-          trainingData: 0
-        };
-      }
-
-      // Add features as patterns (reinforce existing patterns)
-      features.forEach(feature => {
-        if (!newPatterns[type].patterns.includes(feature)) {
-          newPatterns[type].patterns.push(feature);
+      try {
+        const { userCorrection, componentData } = feedback;
+        
+        // Validate feedback data
+        if (!userCorrection || !componentData) {
+          console.warn('Skipping invalid feedback item:', feedback);
+          return;
         }
-      });
-
-      // Add sub-category patterns
-      if (!newPatterns[type].subCategories[category]) {
-        newPatterns[type].subCategories[category] = [];
-      }
-      features.forEach(feature => {
-        if (!newPatterns[type].subCategories[category].includes(feature)) {
-          newPatterns[type].subCategories[category].push(feature);
+        
+        let type = userCorrection.type || 'Uncategorized';
+        let category = userCorrection.category || 'Uncategorized';
+        
+        // Map custom categories to standard ones
+        if (categoryMappings[type]) {
+          type = categoryMappings[type].type;
+          category = categoryMappings[type].category;
         }
-      });
+        
+        const features = this.extractFeatures(
+          componentData.description || '',
+          componentData.make || '',
+          componentData.model || ''
+        );
 
-      // Add example
-      const example = `${componentData.make} ${componentData.model}`;
-      if (!newPatterns[type].examples.includes(example)) {
-        newPatterns[type].examples.push(example);
+        if (!newPatterns[type]) {
+          newPatterns[type] = {
+            patterns: [],
+            examples: [],
+            subCategories: {},
+            confidence: 0,
+            trainingData: 0
+          };
+        }
+
+        // Add features as patterns (reinforce existing patterns)
+        features.forEach(feature => {
+          if (!newPatterns[type].patterns.includes(feature)) {
+            newPatterns[type].patterns.push(feature);
+          }
+        });
+
+        // Add sub-category patterns
+        if (!newPatterns[type].subCategories[category]) {
+          newPatterns[type].subCategories[category] = [];
+        }
+        features.forEach(feature => {
+          if (!newPatterns[type].subCategories[category].includes(feature)) {
+            newPatterns[type].subCategories[category].push(feature);
+          }
+        });
+
+        // Add example
+        const example = `${componentData.make || ''} ${componentData.model || ''}`.trim();
+        if (example && !newPatterns[type].examples.includes(example)) {
+          newPatterns[type].examples.push(example);
+        }
+
+        newPatterns[type].trainingData++;
+      } catch (error) {
+        console.error('Error processing accept feedback:', error, feedback);
       }
-
-      newPatterns[type].trainingData++;
     });
 
     // Merge with existing model patterns
