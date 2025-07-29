@@ -159,6 +159,42 @@ const ManualReviewItem = ({ item, onCategorize }: {
         </div>
       )}
 
+      {/* Direct Text Input for Type (Alternative to dropdown) */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Type (Main Category) - Or enter custom text
+        </label>
+        <input
+          type="text"
+          placeholder="Enter type or select from dropdown above..."
+          value={selectedType === 'Custom' ? customType : selectedType}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSelectedType('Custom');
+            setCustomType(value);
+          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
+      {/* Direct Text Input for Category (Alternative to dropdown) */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Category (Sub-Category) - Or enter custom text
+        </label>
+        <input
+          type="text"
+          placeholder="Enter category or select from dropdown above..."
+          value={selectedCategory === 'Custom' ? customCategory : selectedCategory}
+          onChange={(e) => {
+            const value = e.target.value;
+            setSelectedCategory('Custom');
+            setCustomCategory(value);
+          }}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
         <textarea
