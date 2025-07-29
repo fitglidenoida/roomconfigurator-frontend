@@ -929,32 +929,63 @@ export const enhancedCategorizeComponentsWithLearning = async (components: any[]
 export const recategorizeWithLearning = async (components: any[]) => {
   console.log('Re-categorizing with learned patterns...');
   
-  const uncategorizedComponents = components.filter(comp => 
+  // First, force retrain the model with accumulated feedback
+  supervisedModel.forceRetrain();
+  
+  // Get all components that could benefit from learning
+  const componentsToAnalyze = components.filter(comp => 
     !comp.component_type || 
     comp.component_type === 'Uncategorized' || 
     comp.component_type === 'AV Equipment' ||
     !comp.component_category ||
     comp.component_category === 'Uncategorized' ||
-    comp.component_category === 'AV Equipment'
+    comp.component_category === 'AV Equipment' ||
+    // Also include components with low confidence or generic categories
+    comp.component_category === 'Other Equipment' ||
+    comp.component_category === 'Miscellaneous'
   );
   
-  console.log(`Found ${uncategorizedComponents.length} uncategorized components`);
+  console.log(`Found ${componentsToAnalyze.length} components to analyze with learned patterns`);
   
-  const results = await enhancedCategorizeComponentsWithLearning(uncategorizedComponents);
+  if (componentsToAnalyze.length === 0) {
+    return {
+      new_suggestions: [],
+      recategorized_count: 0,
+      message: 'No components found that need re-categorization. All components are properly categorized.'
+    };
+  }
   
+  const results = await enhancedCategorizeComponentsWithLearning(componentsToAnalyze);
+  
+  // Filter for high confidence suggestions that are different from current categorization
   const newSuggestions = results.high_confidence_suggestions.filter(suggestion => {
     const component = components.find(c => (c.documentId || c.id) === suggestion.component_id);
-    return component && (
-      !component.component_type || 
-      component.component_type === 'Uncategorized' || 
-      component.component_type === 'AV Equipment'
+    if (!component) return false;
+    
+    // Check if the suggestion is different from current categorization
+    const currentType = component.component_type || 'Uncategorized';
+    const currentCategory = component.component_category || 'Uncategorized';
+    const suggestedType = suggestion.suggested_type;
+    const suggestedCategory = suggestion.suggested_category;
+    
+    return (
+      currentType !== suggestedType || 
+      currentCategory !== suggestedCategory
+    ) && (
+      suggestedType !== 'Uncategorized' && 
+      suggestedCategory !== 'Uncategorized'
     );
   });
+  
+  console.log(`Generated ${newSuggestions.length} new suggestions using learned patterns`);
   
   return {
     ...results,
     new_suggestions: newSuggestions,
-    recategorized_count: newSuggestions.length
+    recategorized_count: newSuggestions.length,
+    message: newSuggestions.length > 0 
+      ? `Generated ${newSuggestions.length} new suggestions using learned patterns!`
+      : 'No new suggestions generated. Try providing more feedback first.'
   };
 };
 
