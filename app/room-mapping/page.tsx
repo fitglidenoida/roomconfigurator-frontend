@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { apiService, fetchAllPages } from '../lib/api';
+import axios from 'axios';
 
 interface SRMRoom {
   id: string;
@@ -343,21 +344,56 @@ export default function RoomMappingPage() {
         if (roomType) {
           console.log(`Fetching configurations for room type: ${roomType.name} (room_type: ${roomType.room_type})`);
           
-          // Fetch room configurations for this room type using room_type string (not ID)
-          const response = await apiService.getRoomConfigurations({ 
+          // Try room-configurations first
+          let response = await apiService.getRoomConfigurations({ 
             filters: {
               room_type: {
                 $eq: roomType.room_type
               }
             },
-            populate: '*'
+            populate: {
+              av_components: {
+                populate: '*'
+              }
+            }
           });
           
-          console.log(`API Response for ${roomType.name}:`, response.data);
+          console.log(`Room-configurations API Response for ${roomType.name}:`, response.data);
           
-          // The configurations are actually the components for this room type
-          const configurations = response.data?.data || [];
+          let configurations = response.data?.data || [];
+          
+          // If no configurations found, try default-room-configs
+          if (configurations.length === 0) {
+            console.log(`No room-configurations found for ${roomType.name}, trying default-room-configs...`);
+            
+            try {
+              const defaultResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend.sandyy.dev/api'}/default-room-configs`, {
+                params: {
+                  filters: {
+                    room_type: {
+                      id: {
+                        $eq: roomType.id
+                      }
+                    }
+                  },
+                  populate: '*'
+                }
+              });
+              
+              console.log(`Default-room-configs API Response for ${roomType.name}:`, defaultResponse.data);
+              configurations = defaultResponse.data?.data || [];
+            } catch (error) {
+              console.error(`Error fetching default-room-configs for ${roomType.name}:`, error);
+            }
+          }
+          
           console.log(`Found ${configurations.length} configurations for ${roomType.name}:`, configurations);
+          
+          // Debug: Check if configurations have different room_type values
+          if (configurations.length > 0) {
+            console.log(`Room type values in configurations for ${roomType.name}:`, 
+              configurations.map((config: any) => config.room_type));
+          }
           
           configs.push({
             roomType,
@@ -945,81 +981,157 @@ export default function RoomMappingPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {roomConfigurations.map((configData, index) => (
-                      <div key={index} className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="font-semibold text-gray-800 mb-3">{configData.roomType?.name}</h4>
-                        
-                        {/* Room Type Details */}
-                        <div className="mb-4">
-                          <h5 className="text-sm font-medium text-gray-700 mb-2">Room Specifications</h5>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div>Type: {configData.roomType?.room_type}</div>
-                            <div>Sub-type: {configData.roomType?.sub_type}</div>
-                            <div>Default PAX: {configData.roomType?.default_pax} people</div>
-                            <div>Region: {configData.roomType?.region}, {configData.roomType?.country}</div>
+                  <div className="space-y-8">
+                    {/* Header with room type names */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {roomConfigurations.map((configData, index) => (
+                        <div key={index} className="text-center">
+                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg p-4">
+                            <h3 className="text-lg font-bold">{configData.roomType?.name}</h3>
+                            <p className="text-blue-100 text-sm">{configData.roomType?.room_type} • {configData.roomType?.sub_type}</p>
                           </div>
                         </div>
+                      ))}
+                    </div>
 
-                        {/* Room Configurations */}
-                        <div className="mb-4">
-                          <h5 className="text-sm font-medium text-gray-700 mb-2">Room Components</h5>
-                          {configData.configurations.length > 0 ? (
-                            <div className="space-y-2">
-                              <div className="bg-white rounded border p-3">
-                                <div className="font-medium text-sm text-gray-800 mb-2">
-                                  Total Components: {configData.configurations.length}
-                                </div>
-                                <div className="text-xs text-gray-600 space-y-1">
-                                  <div>Total Cost: ${configData.configurations.reduce((sum: number, comp: any) => sum + (comp.unit_cost || 0) * (comp.qty || 1), 0)}</div>
-                                  <div>Average Cost per Component: ${Math.round(configData.configurations.reduce((sum: number, comp: any) => sum + (comp.unit_cost || 0), 0) / configData.configurations.length)}</div>
-                                </div>
-                              </div>
-                              
-                              {/* Component List */}
-                              <div className="max-h-32 overflow-y-auto">
-                                {configData.configurations.map((component: any, compIndex: number) => (
-                                  <div key={compIndex} className="bg-gray-100 rounded p-2 mb-1">
-                                    <div className="text-xs text-gray-800 font-medium">
-                                      {component.description || component.make + ' ' + component.model}
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      {component.make} {component.model} • Qty: {component.qty || 1} • ${component.unit_cost || 0}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500 italic">
-                              No components available for this room type
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Component Breakdown */}
-                        {configData.configurations.length > 0 && (
-                          <div className="mb-4">
-                            <h5 className="text-sm font-medium text-gray-700 mb-2">Component Categories</h5>
-                            <div className="space-y-1 text-xs text-gray-600">
-                              {(() => {
-                                const categories = configData.configurations.reduce((acc: any, comp: any) => {
-                                  const category = comp.component_category || comp.category || 'Uncategorized';
-                                  acc[category] = (acc[category] || 0) + 1;
-                                  return acc;
-                                }, {});
-                                return Object.entries(categories).map(([category, count]: [string, any]) => (
-                                  <div key={category} className="flex justify-between">
-                                    <span>{category}:</span>
-                                    <span className="font-medium">{count}</span>
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                          </div>
-                        )}
+                    {/* Room Specifications Comparison */}
+                    <div className="bg-white rounded-lg shadow-sm border">
+                      <div className="bg-gray-50 px-6 py-3 border-b">
+                        <h4 className="font-semibold text-gray-800">Room Specifications</h4>
                       </div>
-                    ))}
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {roomConfigurations.map((configData, index) => (
+                            <div key={index} className="space-y-3">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Default PAX:</span>
+                                <span className="font-medium">{configData.roomType?.default_pax} people</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Region:</span>
+                                <span className="font-medium">{configData.roomType?.region}, {configData.roomType?.country}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Category:</span>
+                                <span className="font-medium">{configData.roomType?.category}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Configurable:</span>
+                                <span className="font-medium">{configData.roomType?.is_configurable ? 'Yes' : 'No'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Component Summary Comparison */}
+                    <div className="bg-white rounded-lg shadow-sm border">
+                      <div className="bg-gray-50 px-6 py-3 border-b">
+                        <h4 className="font-semibold text-gray-800">Component Summary</h4>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {roomConfigurations.map((configData, index) => (
+                            <div key={index} className="text-center">
+                              <div className="bg-blue-50 rounded-lg p-4">
+                                <div className="text-2xl font-bold text-blue-600 mb-2">
+                                  {configData.configurations.length}
+                                </div>
+                                <div className="text-sm text-gray-600 mb-3">Total Components</div>
+                                <div className="text-lg font-semibold text-green-600 mb-1">
+                                  ${configData.configurations.reduce((sum: number, comp: any) => sum + (comp.unit_cost || 0) * (comp.qty || 1), 0)}
+                                </div>
+                                <div className="text-xs text-gray-500">Total Cost</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Detailed Component Comparison */}
+                    <div className="bg-white rounded-lg shadow-sm border">
+                      <div className="bg-gray-50 px-6 py-3 border-b">
+                        <h4 className="font-semibold text-gray-800">Component Details</h4>
+                      </div>
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {roomConfigurations.map((configData, index) => (
+                            <div key={index} className="space-y-3">
+                              {configData.configurations.length > 0 ? (
+                                <div className="max-h-64 overflow-y-auto space-y-2">
+                                  {configData.configurations.map((component: any, compIndex: number) => (
+                                    <div key={compIndex} className="bg-gray-50 rounded-lg p-3 border">
+                                      <div className="font-medium text-sm text-gray-800 mb-1">
+                                        {component.description || `${component.make} ${component.model}`}
+                                      </div>
+                                      <div className="text-xs text-gray-600 space-y-1">
+                                        <div className="flex justify-between">
+                                          <span>Make/Model:</span>
+                                          <span className="font-medium">{component.make} {component.model}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Quantity:</span>
+                                          <span className="font-medium">{component.qty || 1}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Unit Cost:</span>
+                                          <span className="font-medium">${component.unit_cost || 0}</span>
+                                        </div>
+                                        <div className="flex justify-between text-green-600 font-medium">
+                                          <span>Total:</span>
+                                          <span>${(component.unit_cost || 0) * (component.qty || 1)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <p className="text-sm">No components available</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Component Categories Comparison */}
+                    {roomConfigurations.some(config => config.configurations.length > 0) && (
+                      <div className="bg-white rounded-lg shadow-sm border">
+                        <div className="bg-gray-50 px-6 py-3 border-b">
+                          <h4 className="font-semibold text-gray-800">Component Categories</h4>
+                        </div>
+                        <div className="p-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {roomConfigurations.map((configData, index) => (
+                              <div key={index} className="space-y-2">
+                                {(() => {
+                                  const categories = configData.configurations.reduce((acc: any, comp: any) => {
+                                    const category = comp.component_category || comp.category || 'Uncategorized';
+                                    acc[category] = (acc[category] || 0) + 1;
+                                    return acc;
+                                  }, {});
+                                  return Object.entries(categories).map(([category, count]: [string, any]) => (
+                                    <div key={category} className="flex justify-between items-center bg-gray-50 rounded px-3 py-2">
+                                      <span className="text-sm text-gray-700">{category}</span>
+                                      <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                                        {count}
+                                      </span>
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
