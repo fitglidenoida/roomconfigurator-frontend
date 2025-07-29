@@ -173,6 +173,7 @@ export default function AdminPage() {
   const [manualReviewCategory, setManualReviewCategory] = useState('');
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
+  const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string} | null>(null);
 
   useEffect(() => {
     // Auto-run analysis on page load
@@ -265,6 +266,23 @@ export default function AdminPage() {
       
       return matchesFilter && matchesCategory;
     });
+  };
+
+  const getSubCategories = (type: string) => {
+    const subCategoriesMap: { [key: string]: string[] } = {
+      'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
+      'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
+      'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
+      'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
+      'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
+      'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
+      'Power': ['UPS Systems', 'Power Supplies', 'PDUs', 'Batteries'],
+      'Lighting': ['LED Lights', 'Controls', 'Accessories'],
+      'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
+      'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
+      'Uncategorized': ['Uncategorized']
+    };
+    return subCategoriesMap[type] || ['Uncategorized'];
   };
 
   // Batch update function for efficiency
@@ -593,10 +611,12 @@ export default function AdminPage() {
                         </button>
                         <button
                           onClick={() => {
-                            const newCategory = prompt('Enter new category:', item.suggested_type);
-                            if (newCategory) {
-                              handleHighConfidenceReview(item.component_id, 'edit', newCategory);
-                            }
+                            setEditModal({
+                              show: true,
+                              item,
+                              newType: item.suggested_type,
+                              newCategory: item.suggested_category
+                            });
                           }}
                           className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         >
@@ -723,6 +743,92 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal for High Confidence Items */}
+        {editModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Edit Categorization</h3>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>{editModal.item.description}</strong><br/>
+                  {editModal.item.make} {editModal.item.model}
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type (Main Category)</label>
+                  <select
+                    value={editModal.newType}
+                    onChange={(e) => {
+                      setEditModal({
+                        ...editModal,
+                        newType: e.target.value,
+                        newCategory: 'Uncategorized' // Reset sub-category when type changes
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="Audio">Audio</option>
+                    <option value="Video">Video</option>
+                    <option value="Control">Control</option>
+                    <option value="Cabling">Cabling</option>
+                    <option value="Mounting">Mounting</option>
+                    <option value="Network">Network</option>
+                    <option value="Power">Power</option>
+                    <option value="Lighting">Lighting</option>
+                    <option value="Rack & Enclosures">Rack & Enclosures</option>
+                    <option value="Tools & Accessories">Tools & Accessories</option>
+                    <option value="Uncategorized">Uncategorized</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category (Sub-Category)</label>
+                  <select
+                    value={editModal.newCategory}
+                    onChange={(e) => {
+                      setEditModal({
+                        ...editModal,
+                        newCategory: e.target.value
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {getSubCategories(editModal.newType).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleHighConfidenceReview(
+                      editModal.item.component_id, 
+                      'edit', 
+                      editModal.newType, 
+                      editModal.newCategory
+                    );
+                    setEditModal(null);
+                  }}
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Save Changes
+                </button>
+              </div>
             </div>
           </div>
         )}
