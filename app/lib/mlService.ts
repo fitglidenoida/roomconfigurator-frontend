@@ -256,12 +256,58 @@ class SupervisedLearningModel {
 
   // Add feedback for supervised learning
   public addFeedback(feedback: LearningFeedback): void {
+    // Validate feedback before adding
+    if (!this.isValidFeedback(feedback)) {
+      console.warn('Invalid feedback detected, skipping:', feedback);
+      return;
+    }
+    
     this.feedbackBuffer.push(feedback);
     this.saveFeedbackBuffer();
     
     // Check if we have enough feedback to retrain
     if (this.feedbackBuffer.length >= this.MIN_FEEDBACK_FOR_TRAINING) {
       this.retrainModel();
+    }
+  }
+
+  private isValidFeedback(feedback: LearningFeedback): boolean {
+    // Check if feedback has all required properties
+    if (!feedback || typeof feedback !== 'object') {
+      return false;
+    }
+    
+    if (!feedback.componentId || typeof feedback.componentId !== 'string') {
+      return false;
+    }
+    
+    if (!feedback.userCorrection || typeof feedback.userCorrection !== 'object') {
+      return false;
+    }
+    
+    if (!feedback.userCorrection.type || typeof feedback.userCorrection.type !== 'string') {
+      return false;
+    }
+    
+    if (!feedback.userCorrection.category || typeof feedback.userCorrection.category !== 'string') {
+      return false;
+    }
+    
+    if (!feedback.componentData || typeof feedback.componentData !== 'object') {
+      return false;
+    }
+    
+    return true;
+  }
+
+  public cleanInvalidFeedback(): void {
+    const originalLength = this.feedbackBuffer.length;
+    this.feedbackBuffer = this.feedbackBuffer.filter(feedback => this.isValidFeedback(feedback));
+    const removedCount = originalLength - this.feedbackBuffer.length;
+    
+    if (removedCount > 0) {
+      console.log(`Cleaned ${removedCount} invalid feedback items`);
+      this.saveFeedbackBuffer();
     }
   }
 
@@ -1063,6 +1109,10 @@ export const debugMLState = () => {
 // Retrain from scratch with category mappings
 export const retrainFromScratch = () => {
   supervisedModel.retrainFromScratch();
+};
+
+export const cleanInvalidFeedback = () => {
+  supervisedModel.cleanInvalidFeedback();
 };
 
 // Enhanced categorization with learning feedback integration
