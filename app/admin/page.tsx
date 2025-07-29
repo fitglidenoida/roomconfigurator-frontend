@@ -5,14 +5,119 @@ import Link from 'next/link';
 import { fetchAllPages } from '../lib/api';
 import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents } from '../lib/mlService';
 
+// Manual Review Item Component
+const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (componentId: string, category: string, confidence: number, notes?: string) => void }) => {
+  const [selectedCategory, setSelectedCategory] = useState(item.suggested_type || 'Uncategorized');
+  const [confidence, setConfidence] = useState(80);
+  const [notes, setNotes] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  const categories = [
+    'Displays', 'Audio', 'Cabling', 'Mounting', 'Control Systems', 'Projection', 
+    'Video', 'Lighting', 'Processing', 'Rack & Enclosures', 'Network', 'Power', 
+    'Software', 'Tools & Accessories', 'Uncategorized'
+  ];
+
+  const handleSubmit = () => {
+    onCategorize(item.component_id, selectedCategory, confidence, notes);
+    setShowForm(false);
+  };
+
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <h4 className="font-medium text-gray-900">{item.description || 'No description'}</h4>
+          <p className="text-sm text-gray-600 mt-1">
+            {item.make} {item.model}
+          </p>
+          <div className="flex items-center space-x-4 mt-2">
+            <span className="text-sm text-gray-500">Current: {item.current_type}</span>
+            <span className="text-sm text-yellow-600 font-medium">Suggested: {item.suggested_type}</span>
+            <span className="text-sm text-red-600 font-medium">Confidence: {item.confidence}%</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>
+        </div>
+        <div className="flex space-x-2 ml-4">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            {showForm ? 'Cancel' : 'Categorize'}
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="border-t pt-4 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confidence (%)</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={confidence}
+                onChange={(e) => setConfidence(Number(e.target.value))}
+                className="w-full"
+              />
+              <div className="text-sm text-gray-600 mt-1">{confidence}%</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+              <input
+                type="text"
+                placeholder="Research notes, reasoning..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              Save Categorization
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AdminPage() {
   const [componentAnalysis, setComponentAnalysis] = useState<any>(null);
   const [enhancedCategorization, setEnhancedCategorization] = useState<any>(null);
   const [mlTrainingResults, setMlTrainingResults] = useState<any>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [mlTrainingLoading, setMlTrainingLoading] = useState(false);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'analysis' | 'high-confidence' | 'manual-review'>('analysis');
+  const [reviewedItems, setReviewedItems] = useState<Set<string>>(new Set());
+  const [manualReviewFilter, setManualReviewFilter] = useState('');
+  const [manualReviewCategory, setManualReviewCategory] = useState('');
 
   useEffect(() => {
     // Auto-run analysis on page load
@@ -57,6 +162,41 @@ export default function AdminPage() {
     } finally {
       setMlTrainingLoading(false);
     }
+  };
+
+  // Review functions
+  const handleHighConfidenceReview = (componentId: string, action: 'accept' | 'reject' | 'edit', newCategory?: string) => {
+    setReviewedItems(prev => new Set([...prev, componentId]));
+    
+    // Here you would typically send this feedback to your ML system
+    console.log('High confidence review:', { componentId, action, newCategory });
+    
+    // For now, we'll just mark it as reviewed
+    // In a real implementation, you'd update the database and retrain the model
+  };
+
+  const handleManualReviewCategorization = (componentId: string, category: string, confidence: number, notes?: string) => {
+    setReviewedItems(prev => new Set([...prev, componentId]));
+    
+    // Here you would typically update the component in the database
+    console.log('Manual review categorization:', { componentId, category, confidence, notes });
+    
+    // In a real implementation, you'd update the database
+  };
+
+  const getFilteredManualReviewItems = () => {
+    if (!enhancedCategorization?.needs_manual_review) return [];
+    
+    return enhancedCategorization.needs_manual_review.filter((item: any) => {
+      const matchesFilter = !manualReviewFilter || 
+        item.description?.toLowerCase().includes(manualReviewFilter.toLowerCase()) ||
+        item.make?.toLowerCase().includes(manualReviewFilter.toLowerCase()) ||
+        item.model?.toLowerCase().includes(manualReviewFilter.toLowerCase());
+      
+      const matchesCategory = !manualReviewCategory || item.suggested_type === manualReviewCategory;
+      
+      return matchesFilter && matchesCategory;
+    });
   };
 
   return (
@@ -105,6 +245,48 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('analysis')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'analysis'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Analysis Overview
+              </button>
+              {enhancedCategorization?.high_confidence_suggestions?.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('high-confidence')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'high-confidence'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  High Confidence Review ({enhancedCategorization.high_confidence_suggestions.length})
+                </button>
+              )}
+              {enhancedCategorization?.needs_manual_review?.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('manual-review')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'manual-review'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Manual Review ({enhancedCategorization.needs_manual_review.length})
+                </button>
+              )}
+            </nav>
+          </div>
+        </div>
 
         {/* Action Buttons */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -158,8 +340,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Analysis Results */}
-        {componentAnalysis && (
+        {/* Tab Content */}
+        {activeTab === 'analysis' && componentAnalysis && (
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Data Quality Analysis</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
@@ -194,8 +376,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Enhanced Categorization Results */}
-        {enhancedCategorization && (
+        {activeTab === 'analysis' && enhancedCategorization && (
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Enhanced Categorization Results</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -225,6 +406,146 @@ export default function AdminPage() {
                     </div>
                   ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* High Confidence Review Tab */}
+        {activeTab === 'high-confidence' && enhancedCategorization && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-800">High Confidence Suggestions Review</h3>
+              <div className="text-sm text-gray-600">
+                {reviewedItems.size} of {enhancedCategorization.high_confidence_suggestions.length} reviewed
+              </div>
+            </div>
+            
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {enhancedCategorization.high_confidence_suggestions
+                .filter((item: any) => !reviewedItems.has(item.component_id))
+                .map((item: any, index: number) => (
+                  <div key={item.component_id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{item.description || 'No description'}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {item.make} {item.model}
+                        </p>
+                        <div className="flex items-center space-x-4 mt-2">
+                          <span className="text-sm text-gray-500">Current: {item.current_type}</span>
+                          <span className="text-sm text-blue-600 font-medium">→ Suggested: {item.suggested_type}</span>
+                          <span className="text-sm text-green-600 font-medium">Confidence: {item.confidence}%</span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{item.reasoning}</p>
+                      </div>
+                      <div className="flex space-x-2 ml-4">
+                        <button
+                          onClick={() => handleHighConfidenceReview(item.component_id, 'accept')}
+                          className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleHighConfidenceReview(item.component_id, 'reject')}
+                          className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            const newCategory = prompt('Enter new category:', item.suggested_type);
+                            if (newCategory) {
+                              handleHighConfidenceReview(item.component_id, 'edit', newCategory);
+                            }
+                          }}
+                          className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              
+              {enhancedCategorization.high_confidence_suggestions
+                .filter((item: any) => reviewedItems.has(item.component_id)).length > 0 && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold text-gray-800 mb-3">Reviewed Items</h4>
+                  <div className="space-y-2">
+                    {enhancedCategorization.high_confidence_suggestions
+                      .filter((item: any) => reviewedItems.has(item.component_id))
+                      .map((item: any) => (
+                        <div key={item.component_id} className="bg-gray-50 p-3 rounded text-sm">
+                          <span className="font-medium">{item.description}</span>
+                          <span className="text-gray-600 ml-2">→ {item.suggested_type}</span>
+                          <span className="text-green-600 ml-2">✓ Reviewed</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Manual Review Tab */}
+        {activeTab === 'manual-review' && enhancedCategorization && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-800">Manual Review Interface</h3>
+              <div className="text-sm text-gray-600">
+                {reviewedItems.size} of {enhancedCategorization.needs_manual_review.length} reviewed
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input
+                  type="text"
+                  placeholder="Search by description, make, or model..."
+                  value={manualReviewFilter}
+                  onChange={(e) => setManualReviewFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Suggested Category</label>
+                <select
+                  value={manualReviewCategory}
+                  onChange={(e) => setManualReviewCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Categories</option>
+                  {Array.from(new Set(enhancedCategorization.needs_manual_review.map((item: any) => item.suggested_type)) as Set<string>).map((category: string) => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setManualReviewFilter('');
+                    setManualReviewCategory('');
+                  }}
+                  className="px-4 py-2 text-sm bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+            
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {getFilteredManualReviewItems()
+                .filter((item: any) => !reviewedItems.has(item.component_id))
+                .map((item: any, index: number) => (
+                  <ManualReviewItem
+                    key={item.component_id}
+                    item={item}
+                    onCategorize={handleManualReviewCategorization}
+                  />
+                ))}
             </div>
           </div>
         )}
