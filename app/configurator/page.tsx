@@ -95,8 +95,8 @@ export default function RoomConfigurator() {
         
         // Check for backup data if sessionStorage is empty
         if (!roomMappings || !projectDataStr) {
-          const backupData = localStorage.getItem('roomConfigsBackup');
-          const lastSaved = localStorage.getItem('lastSaved');
+          const backupData = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem('roomConfigsBackup') : null;
+          const lastSaved = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem('lastSaved') : null;
           
           if (backupData && lastSaved) {
             const lastSavedDate = new Date(lastSaved);

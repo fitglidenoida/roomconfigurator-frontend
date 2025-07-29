@@ -1,4 +1,25 @@
 // ML Service for Room Configurator - Complete Supervised Learning Implementation
+
+// Utility function for safe localStorage access
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.removeItem(key);
+    }
+  }
+};
+
 export interface MLComponentSuggestion {
   componentId: string;
   similarity: number;
@@ -88,7 +109,7 @@ class SupervisedLearningModel {
   // Load trained model from storage
   private loadModel(): void {
     try {
-      const storedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+      const storedModel = safeLocalStorage.getItem(MODEL_STORAGE_KEY);
       if (storedModel) {
         this.model = JSON.parse(storedModel);
         console.log('Loaded trained model:', this.model?.version);
@@ -101,7 +122,7 @@ class SupervisedLearningModel {
   // Save trained model to storage
   private saveModel(model: TrainedModel): void {
     try {
-      localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(model));
+      safeLocalStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(model));
       console.log('Model saved successfully:', model.version);
     } catch (error) {
       console.error('Error saving model:', error);
@@ -111,7 +132,7 @@ class SupervisedLearningModel {
   // Load feedback buffer
   private loadFeedbackBuffer(): void {
     try {
-      const storedFeedback = localStorage.getItem(LEARNING_STORAGE_KEY);
+      const storedFeedback = safeLocalStorage.getItem(LEARNING_STORAGE_KEY);
       if (storedFeedback) {
         this.feedbackBuffer = JSON.parse(storedFeedback);
         console.log('Loaded feedback buffer:', this.feedbackBuffer.length, 'items');
@@ -124,7 +145,7 @@ class SupervisedLearningModel {
   // Save feedback buffer
   private saveFeedbackBuffer(): void {
     try {
-      localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(this.feedbackBuffer));
+      safeLocalStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(this.feedbackBuffer));
     } catch (error) {
       console.error('Error saving feedback buffer:', error);
     }
@@ -585,7 +606,7 @@ class SupervisedLearningModel {
     this.feedbackBuffer = [];
     this.model = null;
     this.saveFeedbackBuffer();
-    localStorage.removeItem(MODEL_STORAGE_KEY);
+    safeLocalStorage.removeItem(MODEL_STORAGE_KEY);
     console.log('Learning data cleared');
   }
 }
