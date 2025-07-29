@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAllPages, apiService } from '../lib/api';
-import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning, recategorizeWithLearning } from '../lib/mlService';
+import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning, recategorizeWithLearning, mlModel } from '../lib/mlService';
 
 // API function to update component categorization
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
@@ -311,8 +311,19 @@ export default function AdminPage() {
     setMlTrainingLoading(true);
     try {
       const avComponents = await fetchAllPages('/av-components');
-      const results = await autoCategorizeComponents(avComponents);
-      setMlTrainingResults(results);
+      const results = await enhancedCategorizeComponentsWithLearning(avComponents);
+      
+      // Force retrain the model with accumulated feedback
+      mlModel.forceRetrain();
+      
+      // Get updated learning stats
+      const updatedStats = getLearningStats();
+      
+      setMlTrainingResults({
+        ...results,
+        modelInfo: mlModel.getModelInfo(),
+        learningStats: updatedStats
+      });
       console.log('ML Training completed:', results);
     } catch (error) {
       console.error('ML Training error:', error);
@@ -990,6 +1001,62 @@ export default function AdminPage() {
                 <h4 className="font-semibold text-blue-800 mb-2">Summary</h4>
                 <p className="text-blue-700">{mlTrainingResults.message}</p>
               </div>
+              
+              {/* Model Performance Metrics */}
+              {mlTrainingResults.modelInfo && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-gray-800 mb-3">Model Performance</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                    <div>
+                      <span className="text-sm text-gray-600">Accuracy</span>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.accuracy}%</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600">Precision</span>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.precision}%</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600">Recall</span>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.recall}%</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-600">F1 Score</span>
+                      <p className="text-lg font-semibold text-gray-900">{mlTrainingResults.modelInfo.performance.f1Score}%</p>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <p>Model Version: {mlTrainingResults.modelInfo.version}</p>
+                    <p>Last Training: {new Date(mlTrainingResults.modelInfo.trainingDate).toLocaleDateString()}</p>
+                    <p>Total Predictions: {mlTrainingResults.modelInfo.performance.totalPredictions}</p>
+                    <p>Correct Predictions: {mlTrainingResults.modelInfo.performance.correctPredictions}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Learning Statistics */}
+              {mlTrainingResults.learningStats && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-3">Learning Statistics</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <span className="text-sm text-blue-600">Total Feedback</span>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.totalFeedback}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-blue-600">Accepted</span>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.accepts}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-blue-600">Corrections</span>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.corrections}</p>
+                    </div>
+                    <div>
+                      <span className="text-sm text-blue-600">Model Version</span>
+                      <p className="text-lg font-semibold text-blue-900">{mlTrainingResults.learningStats.modelVersion || 'N/A'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {mlTrainingResults.suggestions && mlTrainingResults.suggestions.length > 0 && (
                 <div>
