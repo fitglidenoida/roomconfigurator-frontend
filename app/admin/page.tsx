@@ -11,7 +11,8 @@ import {
   storeLearningFeedback, 
   getLearningStats,
   mlModel,
-  debugMLState
+  debugMLState,
+  retrainFromScratch
 } from '../lib/mlService';
 
 // Update component categorization in database
@@ -602,6 +603,20 @@ export default function AdminPage() {
               </svg>
               <span className="font-medium text-gray-900">Debug ML</span>
               <span className="text-sm text-gray-500">Check state</span>
+            </button>
+
+            <button
+              onClick={() => {
+                retrainFromScratch();
+                alert('Model retrained from scratch with category mappings!');
+              }}
+              className="flex flex-col items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <svg className="w-8 h-8 text-orange-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span className="font-medium text-gray-900">Retrain Model</span>
+              <span className="text-sm text-gray-500">Fix mappings</span>
             </button>
           </div>
         </div>

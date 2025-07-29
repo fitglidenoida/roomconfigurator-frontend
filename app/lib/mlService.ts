@@ -275,11 +275,28 @@ class SupervisedLearningModel {
     
     console.log(`Processing ${corrections.length} corrections and ${accepts.length} accepts`);
     
+    // Define category mappings to standardize custom categories
+    const categoryMappings: { [key: string]: { type: string; category: string } } = {
+      'Video Codec': { type: 'Video', category: 'Cameras' },
+      'PC': { type: 'Control', category: 'Controllers' },
+      'USB': { type: 'Control', category: 'Controllers' },
+      'VC': { type: 'Video', category: 'Cameras' },
+      'VC Unit': { type: 'Video', category: 'Cameras' },
+      'Radio': { type: 'Audio', category: 'Accessories' }
+    };
+    
     // Process corrections (user edits/rejections)
     corrections.forEach(feedback => {
       const { userCorrection, componentData } = feedback;
-      const type = userCorrection.type;
-      const category = userCorrection.category;
+      let type = userCorrection.type;
+      let category = userCorrection.category;
+      
+      // Map custom categories to standard ones
+      if (categoryMappings[type]) {
+        type = categoryMappings[type].type;
+        category = categoryMappings[type].category;
+      }
+      
       const features = this.extractFeatures(
         componentData.description,
         componentData.make,
@@ -325,8 +342,15 @@ class SupervisedLearningModel {
     // Process accepts (reinforce existing patterns)
     accepts.forEach(feedback => {
       const { userCorrection, componentData } = feedback;
-      const type = userCorrection.type;
-      const category = userCorrection.category;
+      let type = userCorrection.type;
+      let category = userCorrection.category;
+      
+      // Map custom categories to standard ones
+      if (categoryMappings[type]) {
+        type = categoryMappings[type].type;
+        category = categoryMappings[type].category;
+      }
+      
       const features = this.extractFeatures(
         componentData.description,
         componentData.make,
@@ -653,6 +677,17 @@ class SupervisedLearningModel {
 
   // Force retrain model
   public forceRetrain(): void {
+    if (this.feedbackBuffer.length > 0) {
+      console.log('Force retraining model with category mappings...');
+      this.retrainModel();
+    }
+  }
+  
+  // Retrain from scratch with category mappings
+  public retrainFromScratch(): void {
+    console.log('Retraining from scratch with category mappings...');
+    // Clear existing model to force rebuild with mappings
+    this.model = null;
     if (this.feedbackBuffer.length > 0) {
       this.retrainModel();
     }
@@ -1001,6 +1036,11 @@ export const getLearningStats = () => {
 // Debug ML state
 export const debugMLState = () => {
   supervisedModel.debugMLState();
+};
+
+// Retrain from scratch with category mappings
+export const retrainFromScratch = () => {
+  supervisedModel.retrainFromScratch();
 };
 
 // Enhanced categorization with learning feedback integration
