@@ -321,15 +321,8 @@ class SupervisedLearningModel {
     
     console.log(`Processing ${corrections.length} corrections and ${accepts.length} accepts`);
     
-    // Define category mappings to standardize custom categories
-    const categoryMappings: { [key: string]: { type: string; category: string } } = {
-      'Video Codec': { type: 'Video', category: 'Cameras' },
-      'PC': { type: 'Control', category: 'Controllers' },
-      'USB': { type: 'Control', category: 'Controllers' },
-      'VC': { type: 'Video', category: 'Cameras' },
-      'VC Unit': { type: 'Video', category: 'Cameras' },
-      'Radio': { type: 'Audio', category: 'Accessories' }
-    };
+    // REMOVED: Hardcoded category mappings - let the ML learn custom categories dynamically
+    // The system will now learn your custom categories as new types/categories instead of mapping them
     
     // Process corrections (user edits/rejections)
     corrections.forEach(feedback => {
@@ -345,11 +338,7 @@ class SupervisedLearningModel {
         let type = userCorrection.type || 'Uncategorized';
         let category = userCorrection.category || 'Uncategorized';
         
-        // Map custom categories to standard ones
-        if (categoryMappings[type]) {
-          type = categoryMappings[type].type;
-          category = categoryMappings[type].category;
-        }
+        // Use the custom categories directly - let the ML learn them
         
         const features = this.extractFeatures(
           componentData.description || '',
@@ -410,11 +399,7 @@ class SupervisedLearningModel {
         let type = userCorrection.type || 'Uncategorized';
         let category = userCorrection.category || 'Uncategorized';
         
-        // Map custom categories to standard ones
-        if (categoryMappings[type]) {
-          type = categoryMappings[type].type;
-          category = categoryMappings[type].category;
-        }
+        // Use the custom categories directly - let the ML learn them
         
         const features = this.extractFeatures(
           componentData.description || '',
@@ -461,63 +446,73 @@ class SupervisedLearningModel {
       }
     });
 
-    // Merge with existing model patterns
-    const mergedPatterns = { ...this.getBasePatterns() };
-    Object.entries(newPatterns).forEach(([type, typeData]) => {
-      if (mergedPatterns[type]) {
-        // Merge with existing type
-        mergedPatterns[type].patterns = [
-          ...mergedPatterns[type].patterns,
-          ...typeData.patterns
-        ].slice(0, this.MAX_PATTERNS_PER_TYPE);
-        
-        mergedPatterns[type].examples = [
-          ...mergedPatterns[type].examples,
-          ...typeData.examples
-        ];
-        
-        Object.entries(typeData.subCategories).forEach(([category, patterns]) => {
-          if (mergedPatterns[type].subCategories[category]) {
-            mergedPatterns[type].subCategories[category] = [
-              ...mergedPatterns[type].subCategories[category],
-              ...(patterns as string[])
-            ];
-          } else {
-            mergedPatterns[type].subCategories[category] = patterns as string[];
-          }
-        });
-      } else {
-        // New type
-        mergedPatterns[type] = typeData;
+    // Merge with existing patterns if model exists
+    if (this.model) {
+      Object.entries(this.model.patterns).forEach(([type, typeData]) => {
+        if (!newPatterns[type]) {
+          newPatterns[type] = {
+            patterns: [...typeData.patterns],
+            examples: [...typeData.examples],
+            subCategories: { ...typeData.subCategories },
+            confidence: typeData.confidence,
+            trainingData: typeData.trainingData
+          };
+        } else {
+          // Merge patterns
+          typeData.patterns.forEach(pattern => {
+            if (!newPatterns[type].patterns.includes(pattern)) {
+              newPatterns[type].patterns.push(pattern);
+            }
+          });
+          
+          // Merge examples
+          typeData.examples.forEach(example => {
+            if (!newPatterns[type].examples.includes(example)) {
+              newPatterns[type].examples.push(example);
+            }
+          });
+          
+          // Merge sub-categories
+          Object.entries(typeData.subCategories).forEach(([category, patterns]) => {
+            if (!newPatterns[type].subCategories[category]) {
+              newPatterns[type].subCategories[category] = [...patterns];
+            } else {
+              patterns.forEach(pattern => {
+                if (!newPatterns[type].subCategories[category].includes(pattern)) {
+                  newPatterns[type].subCategories[category].push(pattern);
+                }
+              });
+            }
+          });
+          
+          // Update training data count
+          newPatterns[type].trainingData += typeData.trainingData;
+        }
+      });
+    }
+
+    // Limit patterns per type to prevent bloat
+    Object.keys(newPatterns).forEach(type => {
+      if (newPatterns[type].patterns.length > this.MAX_PATTERNS_PER_TYPE) {
+        newPatterns[type].patterns = newPatterns[type].patterns.slice(0, this.MAX_PATTERNS_PER_TYPE);
       }
     });
 
-    // Calculate confidence scores
-    Object.keys(mergedPatterns).forEach(type => {
-      const typeCorrections = corrections.filter(f => f.userCorrection.type === type);
-      const totalPredictions = this.feedbackBuffer.filter(f => 
-        f.originalSuggestion.type === type
-      ).length;
-      
-      if (totalPredictions > 0) {
-        const correctPredictions = typeCorrections.length;
-        mergedPatterns[type].confidence = correctPredictions / totalPredictions;
-      }
-    });
-
-    // Create new model
-    const newModel: TrainedModel = {
-      version: this.model ? `${this.model.version}.${Date.now()}` : '1.0.0',
-      patterns: mergedPatterns,
+          // Create new model
+      const newModel: TrainedModel = {
+        version: this.model ? `${this.model.version}.${Date.now()}` : '1.0.0',
+        patterns: newPatterns,
       performance: this.calculatePerformance(),
       trainingDate: new Date(),
       lastFeedbackDate: new Date()
     };
 
+    // Save new model
     this.model = newModel;
     this.saveModel(newModel);
     
     console.log('Model retrained successfully:', newModel.version);
+    console.log('New patterns learned:', Object.keys(newPatterns));
   }
 
   // Calculate model performance metrics
