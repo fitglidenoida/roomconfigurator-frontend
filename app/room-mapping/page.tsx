@@ -341,13 +341,13 @@ export default function RoomMappingPage() {
       for (const roomTypeId of roomTypeIds) {
         const roomType = existingRoomTypes.find(rt => rt.id.toString() === roomTypeId);
         if (roomType) {
-          console.log(`Fetching configurations for room type: ${roomType.name} (ID: ${roomType.id})`);
+          console.log(`Fetching configurations for room type: ${roomType.name} (room_type: ${roomType.room_type})`);
           
-          // Fetch room configurations for this room type
+          // Fetch room configurations for this room type using room_type string (not ID)
           const response = await apiService.getRoomConfigurations({ 
             filters: {
               room_type: {
-                $eq: roomType.id
+                $eq: roomType.room_type
               }
             },
             populate: '*'
@@ -415,16 +415,7 @@ export default function RoomMappingPage() {
                 >
                   Room Mapping
                 </Link>
-                <Link 
-                  href="/variants" 
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    pathname === '/variants' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  Variants
-                </Link>
+
               </nav>
             </div>
           </div>
