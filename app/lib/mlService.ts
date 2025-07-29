@@ -740,25 +740,69 @@ class SupervisedLearningModel {
 
   // Force retrain model
   public forceRetrain(): void {
+    console.log('Force retraining model...');
+    
+    // Initialize model if it doesn't exist
+    if (!this.model) {
+      console.log('Initializing model with base patterns...');
+      this.model = {
+        version: '1.0.0',
+        patterns: this.getBasePatterns(),
+        performance: {
+          accuracy: 0,
+          precision: 0,
+          recall: 0,
+          f1Score: 0,
+          totalPredictions: 0,
+          correctPredictions: 0,
+          lastUpdated: new Date()
+        },
+        trainingDate: new Date(),
+        lastFeedbackDate: new Date()
+      };
+      this.saveModel(this.model);
+    }
+    
     if (this.feedbackBuffer.length > 0) {
-      console.log('Force retraining model with category mappings...');
+      console.log(`Force retraining with ${this.feedbackBuffer.length} feedback items...`);
       this.retrainModel();
+    } else {
+      console.log('No feedback available for retraining. Start categorizing components to build the model.');
     }
   }
   
   // Retrain from scratch with category mappings
   public retrainFromScratch(): void {
     console.log('Retraining from scratch with category mappings...');
-    // Clear existing model to force rebuild with mappings
-    this.model = null;
     
-    // Clear all feedback to start completely fresh
-    console.log('Clearing all feedback for fresh start...');
-    this.feedbackBuffer = [];
-    this.saveFeedbackBuffer();
+    // Initialize with base patterns if no model exists
+    if (!this.model) {
+      console.log('Initializing model with base patterns...');
+      this.model = {
+        version: '1.0.0',
+        patterns: this.getBasePatterns(),
+        performance: {
+          accuracy: 0,
+          precision: 0,
+          recall: 0,
+          f1Score: 0,
+          totalPredictions: 0,
+          correctPredictions: 0,
+          lastUpdated: new Date()
+        },
+        trainingDate: new Date(),
+        lastFeedbackDate: new Date()
+      };
+      this.saveModel(this.model);
+    }
     
-    // Don't retrain since we cleared all feedback
-    console.log('No feedback to retrain with - starting fresh');
+    // Retrain with existing feedback if available
+    if (this.feedbackBuffer.length > 0) {
+      console.log(`Retraining with ${this.feedbackBuffer.length} feedback items...`);
+      this.retrainModel();
+    } else {
+      console.log('No feedback available for retraining. Start categorizing components to build the model.');
+    }
   }
 
   // Clear all learning data

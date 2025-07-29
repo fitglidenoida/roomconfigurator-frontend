@@ -243,6 +243,9 @@ export default function AdminPage() {
     // Clean invalid feedback first
     cleanInvalidFeedback();
     
+    // Initialize ML model if needed
+    retrainFromScratch();
+    
     // Auto-run analysis on page load
     handleComponentAnalysis();
     
@@ -287,7 +290,7 @@ export default function AdminPage() {
       const results = await enhancedCategorizeComponentsWithLearning(avComponents);
       
       // Force retrain the model with accumulated feedback
-      mlModel.forceRetrain();
+      retrainFromScratch();
       
       // Get updated learning stats
       const updatedStats = getLearningStats();
