@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 // import { apiService } from '../lib/api';
-import { mlService } from '../lib/mlService';
+// ML service removed - not needed for configurator page
 
 // type AvMaterialItem = {
 //   id: number;
@@ -55,22 +55,10 @@ export default function RoomConfigurator() {
   const [showAVBOQ, setShowAVBOQ] = useState<boolean>(false);
   const [projectData, setProjectData] = useState<any>({});
   const [billOfMaterials, setBillOfMaterials] = useState<any[]>([]);
-  const [mlSuggestions, setMlSuggestions] = useState<any[]>([]);
-  const [showMlSuggestions, setShowMlSuggestions] = useState<boolean>(false);
+  // ML suggestions state removed - functionality moved to admin page
   const pathname = usePathname();
 
-  useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        // Initialize ML service
-        await mlService.initialize();
-      } catch (error) {
-        console.warn('ML service initialization failed:', error);
-      }
-    };
-
-    initializeApp();
-  }, []);
+  // ML service initialization removed - not needed for configurator page
 
   useEffect(() => {
     const fetchData = async () => {
@@ -492,27 +480,7 @@ export default function RoomConfigurator() {
                 >
                   Start New Configuration →
                 </button>
-                <button 
-                  onClick={async () => {
-                    try {
-                      setLoading(true);
-                      const suggestions = await mlService.findSimilarComponents(
-                        billOfMaterials[0], 
-                        roomConfigs[0]?.room_type || 'meeting-room',
-                        approvedCapex
-                      );
-                      setMlSuggestions(suggestions);
-                      setShowMlSuggestions(true);
-                    } catch (error) {
-                      console.error('Failed to get ML suggestions:', error);
-                    } finally {
-                      setLoading(false);
-                    }
-                  }} 
-                  className="text-sm text-purple-600 hover:text-purple-500 font-medium"
-                >
-                  🤖 Get ML Suggestions →
-                </button>
+                {/* ML Suggestions button removed - functionality moved to admin page */}
                 <button 
                   onClick={() => {
                     const exportData = {
@@ -866,61 +834,7 @@ export default function RoomConfigurator() {
         </>
       )}
 
-      {/* ML Suggestions Modal */}
-      {showMlSuggestions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-xl font-semibold text-gray-800">🤖 ML-Powered Component Suggestions</h3>
-              <button
-                onClick={() => setShowMlSuggestions(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              {mlSuggestions.length > 0 ? (
-                <div className="space-y-4">
-                  {mlSuggestions.map((suggestion, index) => (
-                    <div key={index} className="border rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-semibold text-gray-800">
-                          Component {suggestion.componentId}
-                        </h4>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-600">
-                            {Math.round(suggestion.similarity * 100)}% match
-                          </span>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            suggestion.costImpact < 0 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {suggestion.costImpact > 0 ? '+' : ''}{formatCurrency(suggestion.costImpact)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-2">{suggestion.reason}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {suggestion.features.map((feature: string, idx: number) => (
-                          <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                            {feature}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">
-                  <p>No ML suggestions available at the moment.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ML Suggestions Modal removed - functionality moved to admin page */}
     </div>
   );
 }
