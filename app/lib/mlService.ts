@@ -98,7 +98,7 @@ class SupervisedLearningModel {
   private model: TrainedModel | null = null;
   private feedbackBuffer: LearningFeedback[] = [];
   private readonly MIN_FEEDBACK_FOR_TRAINING = 3; // Reduced from 10 to make learning more responsive
-  private readonly MIN_CONFIDENCE_THRESHOLD = 0.7;
+  private readonly MIN_CONFIDENCE_THRESHOLD = 0.5; // Reduced from 0.7 to be more permissive
   private readonly MAX_PATTERNS_PER_TYPE = 50;
 
   constructor() {
@@ -241,9 +241,11 @@ class SupervisedLearningModel {
       const bestPrediction = predictions.reduce((best, current) => 
         current.confidence > best.confidence ? current : best
       );
+      console.log(`🎯 Best prediction for "${description}": ${bestPrediction.type}/${bestPrediction.category} (${Math.round(bestPrediction.confidence * 100)}%)`);
       return bestPrediction;
     }
 
+    console.log(`❌ No predictions for "${description}" - confidence too low or no patterns matched`);
     return {
       type: 'Uncategorized',
       category: 'Uncategorized',
@@ -676,6 +678,16 @@ class SupervisedLearningModel {
       console.log('Training data counts:', Object.entries(this.model.patterns).map(([type, data]) => 
         `${type}: ${data.trainingData} examples`
       ));
+      
+      // Show detailed pattern information
+      Object.entries(this.model.patterns).forEach(([type, data]) => {
+        console.log(`\n📊 ${type} (${data.trainingData} examples):`);
+        console.log(`  Patterns: ${data.patterns.slice(0, 10).join(', ')}${data.patterns.length > 10 ? '...' : ''}`);
+        console.log(`  Examples: ${data.examples.slice(0, 5).join(', ')}${data.examples.length > 5 ? '...' : ''}`);
+        Object.entries(data.subCategories).forEach(([category, patterns]) => {
+          console.log(`    ${category}: ${patterns.slice(0, 5).join(', ')}${patterns.length > 5 ? '...' : ''}`);
+        });
+      });
     }
     console.log('Recent feedback:', this.feedbackBuffer.slice(-5).map(f => ({
       action: f.userCorrection.action,
@@ -1039,9 +1051,15 @@ export const recategorizeWithLearning = async (components: any[]) => {
   const results = await enhancedCategorizeComponentsWithLearning(componentsToAnalyze);
   
   // Filter for high confidence suggestions that are different from current categorization
+  console.log(`Total high confidence suggestions: ${results.high_confidence_suggestions.length}`);
+  console.log(`Total low confidence suggestions: ${results.low_confidence_suggestions.length}`);
+  
   const newSuggestions = results.high_confidence_suggestions.filter(suggestion => {
     const component = components.find(c => (c.documentId || c.id) === suggestion.component_id);
-    if (!component) return false;
+    if (!component) {
+      console.log(`❌ Component not found for suggestion: ${suggestion.component_id}`);
+      return false;
+    }
     
     // Check if the suggestion is different from current categorization
     const currentType = component.component_type || 'Uncategorized';
@@ -1049,13 +1067,17 @@ export const recategorizeWithLearning = async (components: any[]) => {
     const suggestedType = suggestion.suggested_type;
     const suggestedCategory = suggestion.suggested_category;
     
-    return (
-      currentType !== suggestedType || 
-      currentCategory !== suggestedCategory
-    ) && (
-      suggestedType !== 'Uncategorized' && 
-      suggestedCategory !== 'Uncategorized'
-    );
+    const isDifferent = currentType !== suggestedType || currentCategory !== suggestedCategory;
+    const isValidSuggestion = suggestedType !== 'Uncategorized' && suggestedCategory !== 'Uncategorized';
+    
+    if (!isDifferent) {
+      console.log(`❌ Suggestion same as current: ${component.description} - ${currentType}/${currentCategory} vs ${suggestedType}/${suggestedCategory}`);
+    }
+    if (!isValidSuggestion) {
+      console.log(`❌ Invalid suggestion: ${component.description} - ${suggestedType}/${suggestedCategory}`);
+    }
+    
+    return isDifferent && isValidSuggestion;
   });
   
   console.log(`Generated ${newSuggestions.length} new suggestions using learned patterns`);
