@@ -2,30 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { fetchAllPages } from '../lib/api';
+import { fetchAllPages, apiService } from '../lib/api';
 import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents } from '../lib/mlService';
 
 // API function to update component categorization
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
   try {
-    const response = await fetch(`https://backend.sandyy.dev/api/av-components/${componentId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: {
-          component_type: type,
-          component_category: category
-        }
-      })
+    const result = await apiService.updateAVComponent(componentId, {
+      component_type: type,
+      component_category: category
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to update component: ${response.status}`);
-    }
-
-    const result = await response.json();
+    
     console.log('Component updated successfully:', result);
     return result;
   } catch (error) {
