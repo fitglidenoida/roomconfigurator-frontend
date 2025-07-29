@@ -771,28 +771,275 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Learning Statistics */}
-        {learningStats && (
+        {/* Tab Navigation */}
+        <div className="bg-white rounded-lg shadow-md mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              <button
+                onClick={() => setActiveTab('analysis')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'analysis'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Analysis Overview
+              </button>
+              {enhancedCategorization?.high_confidence_suggestions?.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('high-confidence')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'high-confidence'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  High Confidence Review ({enhancedCategorization.high_confidence_suggestions.length})
+                </button>
+              )}
+              {enhancedCategorization?.needs_manual_review?.length > 0 && (
+                <button
+                  onClick={() => setActiveTab('manual-review')}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'manual-review'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Manual Review ({enhancedCategorization.needs_manual_review.length})
+                </button>
+              )}
+            </nav>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'analysis' && (
+          <>
+            {/* Component Analysis Results */}
+            {componentAnalysis && (
+              <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Component Data Analysis</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3">Data Quality</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Total Components</span>
+                        <span className="font-medium">{componentAnalysis.total_components}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Categorized</span>
+                        <span className="font-medium text-green-600">{componentAnalysis.categorized_count}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Uncategorized</span>
+                        <span className="font-medium text-red-600">{componentAnalysis.uncategorized_count}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Categorization Rate</span>
+                        <span className="font-medium">{componentAnalysis.categorization_rate}%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3">Cost Analysis</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Total Cost</span>
+                        <span className="font-medium">${componentAnalysis.cost_analysis.total_cost.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Average Cost</span>
+                        <span className="font-medium">${componentAnalysis.cost_analysis.average_cost.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Cost Range</span>
+                        <span className="font-medium">${componentAnalysis.cost_analysis.cost_range.min} - ${componentAnalysis.cost_analysis.cost_range.max}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-gray-800 mb-3">Top Categories</h4>
+                    <div className="space-y-2">
+                      {Object.entries(componentAnalysis.category_distribution)
+                        .sort(([,a], [,b]) => (b as number) - (a as number))
+                        .slice(0, 5)
+                        .map(([category, count]) => (
+                          <div key={category} className="flex justify-between">
+                            <span className="text-sm text-gray-600">{category}</span>
+                            <span className="font-medium">{count as number}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Learning Statistics */}
+            {learningStats && (
+              <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Learning Statistics</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{learningStats.totalFeedback || 0}</div>
+                    <div className="text-sm text-gray-600">Total Feedback</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{learningStats.accepts || 0}</div>
+                    <div className="text-sm text-gray-600">Accepted</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{learningStats.corrections || 0}</div>
+                    <div className="text-sm text-gray-600">Corrections</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{learningStats.modelVersion || 'N/A'}</div>
+                    <div className="text-sm text-gray-600">Model Version</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* High Confidence Review Tab */}
+        {activeTab === 'high-confidence' && enhancedCategorization?.high_confidence_suggestions && (
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Learning Statistics</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{learningStats.totalFeedback || 0}</div>
-                <div className="text-sm text-gray-600">Total Feedback</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{learningStats.accepts || 0}</div>
-                <div className="text-sm text-gray-600">Accepted</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">{learningStats.corrections || 0}</div>
-                <div className="text-sm text-gray-600">Corrections</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">{learningStats.modelVersion || 'N/A'}</div>
-                <div className="text-sm text-gray-600">Model Version</div>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-800">
+                High Confidence Suggestions ({enhancedCategorization.high_confidence_suggestions.length})
+              </h3>
+              <div className="text-sm text-gray-600">
+                Review and provide feedback on ML suggestions
               </div>
             </div>
+            
+            <div className="space-y-4">
+              {enhancedCategorization.high_confidence_suggestions
+                .filter((item: any) => !reviewedItems.has(item.component_id))
+                .map((item: any, index: number) => (
+                  <div key={item.component_id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">{item.description}</h4>
+                        <p className="text-sm text-gray-600">{item.make} {item.model}</p>
+                        <p className="text-xs text-gray-500">ID: {item.component_id}</p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-sm font-semibold text-green-600">{item.confidence}%</div>
+                        <div className="text-xs text-gray-500">Confidence</div>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <div className="text-sm text-gray-700">
+                        <span className="font-medium">Current:</span> {item.current_type} → {item.current_category}
+                      </div>
+                      <div className="text-sm text-blue-700">
+                        <span className="font-medium">Suggested:</span> {item.suggested_type} → {item.suggested_category}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        <span className="font-medium">Reasoning:</span> {Array.isArray(item.reasoning) ? item.reasoning.join(', ') : item.reasoning}
+                      </div>
+                    </div>
+                    
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleHighConfidenceReview(item.component_id, 'accept')}
+                        className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => handleHighConfidenceReview(item.component_id, 'reject')}
+                        className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                      >
+                        Reject
+                      </button>
+                      <button
+                        onClick={() => {
+                          // For edit, we'll implement a simple inline edit
+                          const newType = prompt('Enter new type:', item.suggested_type);
+                          const newCategory = prompt('Enter new category:', item.suggested_category);
+                          if (newType && newCategory) {
+                            handleHighConfidenceReview(item.component_id, 'edit', newType, newCategory);
+                          }
+                        }}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              
+              {enhancedCategorization.high_confidence_suggestions.filter((item: any) => !reviewedItems.has(item.component_id)).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>All high confidence suggestions have been reviewed!</p>
+                  <p className="text-sm mt-2">Run ML Training again to get new suggestions.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Manual Review Tab */}
+        {activeTab === 'manual-review' && enhancedCategorization?.needs_manual_review && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-800">
+                Manual Review ({enhancedCategorization.needs_manual_review.length})
+              </h3>
+              <div className="flex space-x-4">
+                <input
+                  type="text"
+                  placeholder="Filter by description, make, or model..."
+                  value={manualReviewFilter}
+                  onChange={(e) => setManualReviewFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                />
+                <select
+                  value={manualReviewCategory}
+                  onChange={(e) => setManualReviewCategory(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">All Categories</option>
+                  <option value="Audio">Audio</option>
+                  <option value="Video">Video</option>
+                  <option value="Control">Control</option>
+                  <option value="Switcher">Switcher</option>
+                  <option value="Cabling">Cabling</option>
+                  <option value="Mounting">Mounting</option>
+                  <option value="Network">Network</option>
+                  <option value="Power">Power</option>
+                  <option value="Lighting">Lighting</option>
+                  <option value="Rack & Enclosures">Rack & Enclosures</option>
+                  <option value="Tools & Accessories">Tools & Accessories</option>
+                  <option value="Uncategorized">Uncategorized</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {getFilteredManualReviewItems().map((item: any) => (
+                <ManualReviewItem
+                  key={item.documentId || item.id}
+                  item={item}
+                  onCategorize={handleManualReviewCategorization}
+                />
+              ))}
+            </div>
+            
+            {getFilteredManualReviewItems().length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <p>No components match your filter criteria.</p>
+                <p className="text-sm mt-2">Try adjusting your search or category filter.</p>
+              </div>
+            )}
           </div>
         )}
       </div>
