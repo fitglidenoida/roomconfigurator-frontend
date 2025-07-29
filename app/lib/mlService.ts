@@ -97,7 +97,7 @@ const PATTERN_IMPROVEMENTS_KEY = 'ml_pattern_improvements';
 class SupervisedLearningModel {
   private model: TrainedModel | null = null;
   private feedbackBuffer: LearningFeedback[] = [];
-  private readonly MIN_FEEDBACK_FOR_TRAINING = 10;
+  private readonly MIN_FEEDBACK_FOR_TRAINING = 3; // Reduced from 10 to make learning more responsive
   private readonly MIN_CONFIDENCE_THRESHOLD = 0.7;
   private readonly MAX_PATTERNS_PER_TYPE = 50;
 
@@ -213,7 +213,11 @@ class SupervisedLearningModel {
         // Find best sub-category
         Object.entries(typeData.subCategories).forEach(([category, categoryPatterns]) => {
           const categorySimilarity = this.calculateSimilarity(features, categoryPatterns);
-          const overallConfidence = (typeSimilarity + categorySimilarity) / 2;
+          
+          // Boost confidence based on training data
+          const trainingDataBoost = Math.min(typeData.trainingData / 20, 0.2); // Max 20% boost
+          const baseConfidence = (typeSimilarity + categorySimilarity) / 2;
+          const overallConfidence = Math.min(baseConfidence + trainingDataBoost, 1.0);
           
           if (overallConfidence > this.MIN_CONFIDENCE_THRESHOLD) {
             predictions.push({
@@ -223,6 +227,7 @@ class SupervisedLearningModel {
               reasoning: [
                 `Type similarity: ${(typeSimilarity * 100).toFixed(1)}%`,
                 `Category similarity: ${(categorySimilarity * 100).toFixed(1)}%`,
+                `Training data boost: +${(trainingDataBoost * 100).toFixed(1)}% (${typeData.trainingData} examples)`,
                 `Patterns matched: ${features.filter(f => typeFeatures.includes(f)).join(', ')}`
               ]
             });
@@ -264,8 +269,11 @@ class SupervisedLearningModel {
     
     const newPatterns: { [type: string]: any } = {};
     const corrections = this.feedbackBuffer.filter(f => f.userCorrection.action !== 'accept');
+    const accepts = this.feedbackBuffer.filter(f => f.userCorrection.action === 'accept');
     
-    // Group corrections by type
+    console.log(`Processing ${corrections.length} corrections and ${accepts.length} accepts`);
+    
+    // Process corrections (user edits/rejections)
     corrections.forEach(feedback => {
       const { userCorrection, componentData } = feedback;
       const type = userCorrection.type;
@@ -286,7 +294,54 @@ class SupervisedLearningModel {
         };
       }
 
-      // Add features as patterns
+      // Add features as patterns with higher weight for corrections
+      features.forEach(feature => {
+        if (!newPatterns[type].patterns.includes(feature)) {
+          newPatterns[type].patterns.push(feature);
+        }
+      });
+
+      // Add sub-category patterns
+      if (!newPatterns[type].subCategories[category]) {
+        newPatterns[type].subCategories[category] = [];
+      }
+      features.forEach(feature => {
+        if (!newPatterns[type].subCategories[category].includes(feature)) {
+          newPatterns[type].subCategories[category].push(feature);
+        }
+      });
+
+      // Add example
+      const example = `${componentData.make} ${componentData.model}`;
+      if (!newPatterns[type].examples.includes(example)) {
+        newPatterns[type].examples.push(example);
+      }
+
+      newPatterns[type].trainingData++;
+    });
+    
+    // Process accepts (reinforce existing patterns)
+    accepts.forEach(feedback => {
+      const { userCorrection, componentData } = feedback;
+      const type = userCorrection.type;
+      const category = userCorrection.category;
+      const features = this.extractFeatures(
+        componentData.description,
+        componentData.make,
+        componentData.model
+      );
+
+      if (!newPatterns[type]) {
+        newPatterns[type] = {
+          patterns: [],
+          examples: [],
+          subCategories: {},
+          confidence: 0,
+          trainingData: 0
+        };
+      }
+
+      // Add features as patterns (reinforce existing patterns)
       features.forEach(feature => {
         if (!newPatterns[type].patterns.includes(feature)) {
           newPatterns[type].patterns.push(feature);
@@ -609,6 +664,27 @@ class SupervisedLearningModel {
     safeLocalStorage.removeItem(MODEL_STORAGE_KEY);
     console.log('Learning data cleared');
   }
+  
+  // Debug function to understand ML state
+  public debugMLState(): void {
+    console.log('=== ML Debug State ===');
+    console.log('Feedback buffer length:', this.feedbackBuffer.length);
+    console.log('Model exists:', !!this.model);
+    if (this.model) {
+      console.log('Model version:', this.model.version);
+      console.log('Model patterns:', Object.keys(this.model.patterns));
+      console.log('Training data counts:', Object.entries(this.model.patterns).map(([type, data]) => 
+        `${type}: ${data.trainingData} examples`
+      ));
+    }
+    console.log('Recent feedback:', this.feedbackBuffer.slice(-5).map(f => ({
+      action: f.userCorrection.action,
+      type: f.userCorrection.type,
+      category: f.userCorrection.category,
+      component: `${f.componentData.make} ${f.componentData.model}`
+    })));
+    console.log('=====================');
+  }
 }
 
 // Initialize the supervised learning model
@@ -908,6 +984,11 @@ export const storeLearningFeedback = (feedback: LearningFeedback) => {
 // Get learning statistics
 export const getLearningStats = () => {
   return supervisedModel.getLearningStats();
+};
+
+// Debug ML state
+export const debugMLState = () => {
+  supervisedModel.debugMLState();
 };
 
 // Enhanced categorization with learning feedback integration

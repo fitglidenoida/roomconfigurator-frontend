@@ -9,7 +9,8 @@ import {
   recategorizeWithLearning, 
   storeLearningFeedback, 
   getLearningStats,
-  mlModel 
+  mlModel,
+  debugMLState
 } from '../lib/mlService';
 
 // Update component categorization in database
@@ -375,12 +376,15 @@ export default function AdminPage() {
       // Ensure we're using the documentId for the update
       await updateComponentCategorization(componentId, type, category);
       
-      // Store learning feedback
+      // Find the component data for feedback
+      const component = enhancedCategorization?.needs_manual_review?.find((item: any) => (item.documentId || item.id) === componentId);
+      
+      // Store learning feedback with actual component data
       const feedback = {
         componentId,
         originalSuggestion: {
-          type: 'manual_review',
-          category: 'manual_review',
+          type: component?.component_type || 'Uncategorized',
+          category: component?.component_category || 'Uncategorized',
           confidence: 0
         },
         userCorrection: {
@@ -389,9 +393,9 @@ export default function AdminPage() {
           action: 'edit' as const
         },
         componentData: {
-          description: '',
-          make: '',
-          model: ''
+          description: component?.description || '',
+          make: component?.make || '',
+          model: component?.model || ''
         },
         timestamp: new Date()
       };
@@ -584,6 +588,17 @@ export default function AdminPage() {
               </svg>
               <span className="font-medium text-gray-900">Apply Learning</span>
               <span className="text-sm text-gray-500">Re-categorize</span>
+            </button>
+
+            <button
+              onClick={() => debugMLState()}
+              className="flex flex-col items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              <svg className="w-8 h-8 text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium text-gray-900">Debug ML</span>
+              <span className="text-sm text-gray-500">Check state</span>
             </button>
           </div>
         </div>
