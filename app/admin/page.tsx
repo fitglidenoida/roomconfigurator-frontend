@@ -8,6 +8,8 @@ import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeCompo
 // API function to update component categorization
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
   try {
+    console.log('Updating component:', { componentId, type, category });
+    
     const result = await apiService.updateAVComponent(componentId, {
       component_type: type,
       component_category: category
@@ -17,6 +19,7 @@ const updateComponentCategorization = async (componentId: string, type: string, 
     return result;
   } catch (error) {
     console.error('Error updating component:', error);
+    console.error('Component ID used:', componentId);
     throw error;
   }
 };

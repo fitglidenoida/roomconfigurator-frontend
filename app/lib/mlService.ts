@@ -246,7 +246,7 @@ export const trainOnUncategorizedComponents = async (uncategorizedComponents: an
     });
 
     return {
-      component_id: component.id,
+      component_id: component.documentId || component.id,
       current_type: component.component_type,
       suggested_type: bestMatch,
       confidence: bestScore > 0 ? Math.min(bestScore * 20, 100) : 0,
@@ -519,7 +519,7 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     });
 
     return {
-      component_id: component.id,
+      component_id: component.documentId || component.id,
       current_type: component.component_type || 'Uncategorized',
       current_category: component.component_category || 'Uncategorized',
       suggested_type: bestMainType,
