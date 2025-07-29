@@ -15,6 +15,7 @@ import {
 // Update component categorization in database
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
   try {
+    // Ensure we're using the documentId for the API call
     const response = await fetch(`/api/av-components/${componentId}`, {
       method: 'PUT',
       headers: {
@@ -290,6 +291,7 @@ export default function AdminPage() {
       
       if (action === 'accept') {
         if (component) {
+          // Use the component_id which should be the documentId from the ML service
           await updateComponentCategorization(componentId, component.suggested_type, component.suggested_category);
         }
       } else if (action === 'edit' && newType && newCategory) {
@@ -332,6 +334,7 @@ export default function AdminPage() {
 
   const handleManualReviewCategorization = async (componentId: string, type: string, category: string, confidence: number, notes?: string) => {
     try {
+      // Ensure we're using the documentId for the update
       await updateComponentCategorization(componentId, type, category);
       
       // Store learning feedback
@@ -897,8 +900,22 @@ export default function AdminPage() {
                     <div className="text-sm text-gray-600">Corrections</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{learningStats.modelVersion || 'N/A'}</div>
+                    <div className="text-lg font-bold text-purple-600 break-all max-w-full">
+                      {learningStats.modelVersion ? 
+                        learningStats.modelVersion.length > 20 ? 
+                          `${learningStats.modelVersion.substring(0, 20)}...` : 
+                          learningStats.modelVersion 
+                        : 'N/A'
+                      }
+                    </div>
                     <div className="text-sm text-gray-600">Model Version</div>
+                    {learningStats.modelVersion && learningStats.modelVersion.length > 20 && (
+                      <div className="text-xs text-gray-500 mt-1 cursor-pointer hover:text-gray-700" 
+                           title={learningStats.modelVersion}
+                           onClick={() => alert(`Full Model Version: ${learningStats.modelVersion}`)}>
+                        Click to see full version
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

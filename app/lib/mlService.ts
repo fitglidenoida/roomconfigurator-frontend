@@ -887,6 +887,14 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     categorized_components: results.length,
     high_confidence_suggestions: results.filter(r => r.confidence > 70),
     low_confidence_suggestions: results.filter(r => r.confidence <= 70),
+    needs_manual_review: components.filter(comp => 
+      !comp.component_type || 
+      comp.component_type === 'Uncategorized' || 
+      comp.component_type === 'AV Equipment' ||
+      !comp.component_category ||
+      comp.component_category === 'Uncategorized' ||
+      comp.component_category === 'AV Equipment'
+    ),
     model_version: supervisedModel.getModelInfo()?.version || '1.0.0',
     model_performance: supervisedModel.getModelInfo()?.performance || null
   };
