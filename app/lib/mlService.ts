@@ -756,9 +756,14 @@ class SupervisedLearningModel {
     console.log('Retraining from scratch with category mappings...');
     // Clear existing model to force rebuild with mappings
     this.model = null;
-    if (this.feedbackBuffer.length > 0) {
-      this.retrainModel();
-    }
+    
+    // Clear all feedback to start completely fresh
+    console.log('Clearing all feedback for fresh start...');
+    this.feedbackBuffer = [];
+    this.saveFeedbackBuffer();
+    
+    // Don't retrain since we cleared all feedback
+    console.log('No feedback to retrain with - starting fresh');
   }
 
   // Clear all learning data
@@ -1113,6 +1118,10 @@ export const retrainFromScratch = () => {
 
 export const cleanInvalidFeedback = () => {
   supervisedModel.cleanInvalidFeedback();
+};
+
+export const clearAllLearningData = () => {
+  supervisedModel.clearLearningData();
 };
 
 // Enhanced categorization with learning feedback integration
