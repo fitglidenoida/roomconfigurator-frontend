@@ -379,13 +379,22 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
       }
     },
     'Control': {
-      patterns: ['switch', 'matrix', 'controller', 'processor', 'dsp', 'control', 'automation', 'crestron', 'amx', 'extron'],
+      patterns: ['controller', 'processor', 'dsp', 'control', 'automation', 'crestron', 'amx', 'extron'],
       examples: ['Crestron Controller', 'Extron Matrix', 'AMX System'],
       subCategories: {
         'Controllers': ['controller', 'processor', 'automation', 'crestron', 'amx', 'extron'],
-        'Switches': ['switch', 'matrix', 'video switch', 'audio switch'],
         'Touch Panels': ['touch', 'panel', 'interface', 'keypad'],
         'Software': ['software', 'platform', 'management', 'app']
+      }
+    },
+    'Switcher': {
+      patterns: ['switch', 'matrix', 'switcher', 'distribution', 'multiviewer', 'extron', 'crestron', 'kramer', 'atlona'],
+      examples: ['Extron Matrix Switcher', 'Crestron Switcher', 'Kramer Switcher'],
+      subCategories: {
+        'Video Switchers': ['video switch', 'matrix', 'multiviewer', 'video matrix'],
+        'Audio Switchers': ['audio switch', 'audio matrix', 'mixer'],
+        'Matrix Switchers': ['matrix switcher', 'matrix switch', 'crosspoint'],
+        'Distribution Amplifiers': ['distribution', 'da', 'splitter', 'amplifier']
       }
     },
     'Cabling': {

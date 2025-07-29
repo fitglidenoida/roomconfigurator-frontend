@@ -33,8 +33,8 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
   const [showForm, setShowForm] = useState(false);
 
   const types = [
-    'Audio', 'Video', 'Control', 'Cabling', 'Mounting', 'Network', 'Power', 
-    'Lighting', 'Rack & Enclosures', 'Tools & Accessories', 'Uncategorized'
+    'Audio', 'Video', 'Control', 'Switcher', 'Cabling', 'Mounting', 'Network', 'Power', 
+    'Lighting', 'Rack & Enclosures', 'Tools & Accessories', 'Uncategorized', 'Custom'
   ];
 
   const getSubCategories = (type: string) => {
@@ -42,6 +42,7 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
       'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
       'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
       'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
+      'Switcher': ['Video Switchers', 'Audio Switchers', 'Matrix Switchers', 'Distribution Amplifiers'],
       'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
       'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
       'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
@@ -49,7 +50,8 @@ const ManualReviewItem = ({ item, onCategorize }: { item: any; onCategorize: (co
       'Lighting': ['LED Lights', 'Controls', 'Accessories'],
       'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
       'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
-      'Uncategorized': ['Uncategorized']
+      'Uncategorized': ['Uncategorized'],
+      'Custom': ['Custom']
     };
     return subCategoriesMap[type] || ['Uncategorized'];
   };
@@ -173,7 +175,7 @@ export default function AdminPage() {
   const [manualReviewCategory, setManualReviewCategory] = useState('');
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
-  const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string} | null>(null);
+  const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string, customType: string, customCategory: string} | null>(null);
 
   useEffect(() => {
     // Auto-run analysis on page load
@@ -273,6 +275,7 @@ export default function AdminPage() {
       'Audio': ['Speakers', 'Microphones', 'Amplifiers', 'Mixers', 'Processors', 'Accessories'],
       'Video': ['Displays', 'Projectors', 'Cameras', 'Recorders'],
       'Control': ['Controllers', 'Switches', 'Touch Panels', 'Software'],
+      'Switcher': ['Video Switchers', 'Audio Switchers', 'Matrix Switchers', 'Distribution Amplifiers'],
       'Cabling': ['Video Cables', 'Audio Cables', 'Network Cables', 'Power Cables'],
       'Mounting': ['Wall Mounts', 'Ceiling Mounts', 'Floor Stands', 'Rack Mounts'],
       'Network': ['Switches', 'Routers', 'Wireless', 'Network Tools'],
@@ -280,7 +283,8 @@ export default function AdminPage() {
       'Lighting': ['LED Lights', 'Controls', 'Accessories'],
       'Rack & Enclosures': ['Racks', 'Enclosures', 'Accessories'],
       'Tools & Accessories': ['Adapters', 'Splitters', 'Extenders', 'Tools'],
-      'Uncategorized': ['Uncategorized']
+      'Uncategorized': ['Uncategorized'],
+      'Custom': ['Custom']
     };
     return subCategoriesMap[type] || ['Uncategorized'];
   };
@@ -615,7 +619,9 @@ export default function AdminPage() {
                               show: true,
                               item,
                               newType: item.suggested_type,
-                              newCategory: item.suggested_category
+                              newCategory: item.suggested_category,
+                              customType: '',
+                              customCategory: ''
                             });
                           }}
                           className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -777,6 +783,7 @@ export default function AdminPage() {
                     <option value="Audio">Audio</option>
                     <option value="Video">Video</option>
                     <option value="Control">Control</option>
+                    <option value="Switcher">Switcher</option>
                     <option value="Cabling">Cabling</option>
                     <option value="Mounting">Mounting</option>
                     <option value="Network">Network</option>
@@ -785,6 +792,7 @@ export default function AdminPage() {
                     <option value="Rack & Enclosures">Rack & Enclosures</option>
                     <option value="Tools & Accessories">Tools & Accessories</option>
                     <option value="Uncategorized">Uncategorized</option>
+                    <option value="Custom">Custom</option>
                   </select>
                 </div>
 
@@ -805,6 +813,44 @@ export default function AdminPage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Custom Type Input */}
+                {editModal.newType === 'Custom' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Type</label>
+                    <input
+                      type="text"
+                      placeholder="Enter custom type..."
+                      value={editModal.customType}
+                      onChange={(e) => {
+                        setEditModal({
+                          ...editModal,
+                          customType: e.target.value
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                {/* Custom Category Input */}
+                {editModal.newCategory === 'Custom' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Custom Category</label>
+                    <input
+                      type="text"
+                      placeholder="Enter custom category..."
+                      value={editModal.customCategory}
+                      onChange={(e) => {
+                        setEditModal({
+                          ...editModal,
+                          customCategory: e.target.value
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
@@ -816,11 +862,25 @@ export default function AdminPage() {
                 </button>
                 <button
                   onClick={async () => {
+                    // Use custom values if provided, otherwise use selected values
+                    const finalType = editModal.newType === 'Custom' ? editModal.customType : editModal.newType;
+                    const finalCategory = editModal.newCategory === 'Custom' ? editModal.customCategory : editModal.newCategory;
+                    
+                    if (editModal.newType === 'Custom' && !editModal.customType.trim()) {
+                      alert('Please enter a custom type');
+                      return;
+                    }
+                    
+                    if (editModal.newCategory === 'Custom' && !editModal.customCategory.trim()) {
+                      alert('Please enter a custom category');
+                      return;
+                    }
+                    
                     await handleHighConfidenceReview(
                       editModal.item.component_id, 
                       'edit', 
-                      editModal.newType, 
-                      editModal.newCategory
+                      finalType, 
+                      finalCategory
                     );
                     setEditModal(null);
                   }}
