@@ -310,10 +310,10 @@ class SupervisedLearningModel {
           if (mergedPatterns[type].subCategories[category]) {
             mergedPatterns[type].subCategories[category] = [
               ...mergedPatterns[type].subCategories[category],
-              ...patterns
+              ...(patterns as string[])
             ];
           } else {
-            mergedPatterns[type].subCategories[category] = patterns;
+            mergedPatterns[type].subCategories[category] = patterns as string[];
           }
         });
       } else {
