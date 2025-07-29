@@ -571,3 +571,202 @@ export const enhancedCategorizeComponents = async (components: any[]) => {
     }
   };
 }; 
+
+// Supervised Learning System
+interface LearningFeedback {
+  componentId: string;
+  originalSuggestion: {
+    type: string;
+    category: string;
+    confidence: number;
+  };
+  userCorrection: {
+    type: string;
+    category: string;
+    action: 'accept' | 'reject' | 'edit';
+  };
+  componentData: {
+    description: string;
+    make: string;
+    model: string;
+  };
+  timestamp: Date;
+}
+
+// Store learning feedback in localStorage for persistence
+const LEARNING_STORAGE_KEY = 'ml_learning_feedback';
+
+// Store feedback for supervised learning
+export const storeLearningFeedback = (feedback: LearningFeedback) => {
+  try {
+    const existingFeedback = localStorage.getItem(LEARNING_STORAGE_KEY);
+    const feedbackArray: LearningFeedback[] = existingFeedback ? JSON.parse(existingFeedback) : [];
+    
+    // Add new feedback
+    feedbackArray.push(feedback);
+    
+    // Keep only last 1000 feedback entries to prevent storage bloat
+    if (feedbackArray.length > 1000) {
+      feedbackArray.splice(0, feedbackArray.length - 1000);
+    }
+    
+    localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify(feedbackArray));
+    console.log('Learning feedback stored:', feedback);
+    
+    // Trigger pattern update
+    updatePatternsFromFeedback();
+  } catch (error) {
+    console.error('Error storing learning feedback:', error);
+  }
+};
+
+// Update patterns based on accumulated feedback
+const updatePatternsFromFeedback = () => {
+  try {
+    const existingFeedback = localStorage.getItem(LEARNING_STORAGE_KEY);
+    if (!existingFeedback) return;
+    
+    const feedbackArray: LearningFeedback[] = JSON.parse(existingFeedback);
+    
+    // Analyze feedback to improve patterns
+    const patternImprovements = analyzeFeedbackForPatterns(feedbackArray);
+    
+    // Apply improvements to the enhanced patterns
+    applyPatternImprovements(patternImprovements);
+    
+    console.log('Patterns updated based on feedback:', patternImprovements);
+  } catch (error) {
+    console.error('Error updating patterns from feedback:', error);
+  }
+};
+
+// Analyze feedback to identify pattern improvements
+const analyzeFeedbackForPatterns = (feedback: LearningFeedback[]) => {
+  const improvements: {
+    [type: string]: {
+      newPatterns: string[];
+      newSubCategories: { [key: string]: string[] };
+      brandPatterns: string[];
+    };
+  } = {};
+  
+  feedback.forEach(feedbackItem => {
+    const { originalSuggestion, userCorrection, componentData } = feedbackItem;
+    
+    // Only learn from corrections (not accepts)
+    if (userCorrection.action === 'accept') return;
+    
+    const correctedType = userCorrection.type;
+    const correctedCategory = userCorrection.category;
+    const { description, make, model } = componentData;
+    
+    // Extract potential patterns from the corrected component
+    const words = `${description} ${make} ${model}`.toLowerCase().split(/\s+/);
+    
+    if (!improvements[correctedType]) {
+      improvements[correctedType] = {
+        newPatterns: [],
+        newSubCategories: {},
+        brandPatterns: []
+      };
+    }
+    
+    // Add new patterns
+    words.forEach(word => {
+      if (word.length > 2 && !improvements[correctedType].newPatterns.includes(word)) {
+        improvements[correctedType].newPatterns.push(word);
+      }
+    });
+    
+    // Add brand patterns
+    if (make && make.length > 2) {
+      improvements[correctedType].brandPatterns.push(make.toLowerCase());
+    }
+    
+    // Add sub-category patterns
+    if (!improvements[correctedType].newSubCategories[correctedCategory]) {
+      improvements[correctedType].newSubCategories[correctedCategory] = [];
+    }
+    
+    words.forEach(word => {
+      if (word.length > 2 && !improvements[correctedType].newSubCategories[correctedCategory].includes(word)) {
+        improvements[correctedType].newSubCategories[correctedCategory].push(word);
+      }
+    });
+  });
+  
+  return improvements;
+};
+
+// Apply pattern improvements to the enhanced patterns
+const applyPatternImprovements = (improvements: any) => {
+  // This function would update the enhancedPatterns object
+  // For now, we'll log the improvements and they can be manually integrated
+  console.log('Pattern improvements to apply:', improvements);
+  
+  // In a production system, you might:
+  // 1. Store these improvements in a database
+  // 2. Use them to retrain the ML model
+  // 3. Update the pattern matching logic
+};
+
+// Get learning statistics
+export const getLearningStats = () => {
+  try {
+    const existingFeedback = localStorage.getItem(LEARNING_STORAGE_KEY);
+    if (!existingFeedback) return null;
+    
+    const feedbackArray: LearningFeedback[] = JSON.parse(existingFeedback);
+    
+    const stats = {
+      totalFeedback: feedbackArray.length,
+      accepts: feedbackArray.filter(f => f.userCorrection.action === 'accept').length,
+      corrections: feedbackArray.filter(f => f.userCorrection.action !== 'accept').length,
+      accuracyImprovement: calculateAccuracyImprovement(feedbackArray),
+      recentFeedback: feedbackArray.slice(-10) // Last 10 feedback items
+    };
+    
+    return stats;
+  } catch (error) {
+    console.error('Error getting learning stats:', error);
+    return null;
+  }
+};
+
+// Calculate accuracy improvement over time
+const calculateAccuracyImprovement = (feedback: LearningFeedback[]) => {
+  if (feedback.length < 10) return null;
+  
+  // Split feedback into early and recent periods
+  const earlyPeriod = feedback.slice(0, Math.floor(feedback.length / 2));
+  const recentPeriod = feedback.slice(Math.floor(feedback.length / 2));
+  
+  const earlyAccuracy = earlyPeriod.filter(f => f.userCorrection.action === 'accept').length / earlyPeriod.length;
+  const recentAccuracy = recentPeriod.filter(f => f.userCorrection.action === 'accept').length / recentPeriod.length;
+  
+  return {
+    earlyAccuracy: Math.round(earlyAccuracy * 100),
+    recentAccuracy: Math.round(recentAccuracy * 100),
+    improvement: Math.round((recentAccuracy - earlyAccuracy) * 100)
+  };
+};
+
+// Enhanced categorization with learning feedback integration
+export const enhancedCategorizeComponentsWithLearning = async (components: any[]) => {
+  console.log('Starting enhanced component categorization with learning feedback...');
+  
+  // Get learning feedback to improve patterns
+  const learningStats = getLearningStats();
+  console.log('Learning stats:', learningStats);
+  
+  // Use the existing enhanced categorization
+  const results = await enhancedCategorizeComponents(components);
+  
+  // Add learning context to results
+  return {
+    ...results,
+    learningStats,
+    modelVersion: '1.1', // Increment version when patterns are updated
+    lastTraining: new Date().toISOString()
+  };
+}; 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAllPages, apiService } from '../lib/api';
-import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents } from '../lib/mlService';
+import { autoCategorizeComponents, analyzeComponentData, enhancedCategorizeComponents, storeLearningFeedback, getLearningStats, enhancedCategorizeComponentsWithLearning } from '../lib/mlService';
 
 // API function to update component categorization
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
@@ -265,10 +265,15 @@ export default function AdminPage() {
   const [updating, setUpdating] = useState(false);
   const [updateProgress, setUpdateProgress] = useState(0);
   const [editModal, setEditModal] = useState<{show: boolean, item: any, newType: string, newCategory: string, customType: string, customCategory: string} | null>(null);
+  const [learningStats, setLearningStats] = useState<any>(null);
 
   useEffect(() => {
     // Auto-run analysis on page load
     handleComponentAnalysis();
+    
+    // Load learning stats
+    const stats = getLearningStats();
+    setLearningStats(stats);
   }, []);
 
   // Comprehensive Component Analysis
@@ -281,11 +286,15 @@ export default function AdminPage() {
       const analysis = await analyzeComponentData(avComponents);
       setComponentAnalysis(analysis);
       
-      // Step 2: Enhanced categorization
-      const categorization = await enhancedCategorizeComponents(avComponents);
+      // Step 2: Enhanced categorization with learning feedback
+      const categorization = await enhancedCategorizeComponentsWithLearning(avComponents);
       setEnhancedCategorization(categorization);
       
-      console.log('Component analysis completed:', { analysis, categorization });
+      // Update learning stats
+      const stats = getLearningStats();
+      setLearningStats(stats);
+      
+      console.log('Component analysis completed:', { analysis, categorization, learningStats: stats });
     } catch (error) {
       console.error('Component analysis error:', error);
       setError('Failed to analyze components. Please try again.');
@@ -314,9 +323,10 @@ export default function AdminPage() {
   // Review functions
   const handleHighConfidenceReview = async (componentId: string, action: 'accept' | 'reject' | 'edit', newType?: string, newCategory?: string) => {
     try {
+      // Find the component to get its suggested categorization and data
+      const component = enhancedCategorization?.high_confidence_suggestions?.find((item: any) => item.component_id === componentId);
+      
       if (action === 'accept') {
-        // Find the component to get its suggested categorization
-        const component = enhancedCategorization?.high_confidence_suggestions?.find((item: any) => item.component_id === componentId);
         if (component) {
           await updateComponentCategorization(componentId, component.suggested_type, component.suggested_category);
         }
@@ -324,6 +334,31 @@ export default function AdminPage() {
         await updateComponentCategorization(componentId, newType, newCategory);
       }
       // For 'reject', we don't update the database - just mark as reviewed
+      
+      // Store learning feedback for ML improvement
+      if (component) {
+        const feedback = {
+          componentId,
+          originalSuggestion: {
+            type: component.suggested_type,
+            category: component.suggested_category,
+            confidence: component.confidence
+          },
+          userCorrection: {
+            type: action === 'accept' ? component.suggested_type : (newType || 'rejected'),
+            category: action === 'accept' ? component.suggested_category : (newCategory || 'rejected'),
+            action: action as 'accept' | 'reject' | 'edit'
+          },
+          componentData: {
+            description: component.description || '',
+            make: component.make || '',
+            model: component.model || ''
+          },
+          timestamp: new Date()
+        };
+        
+        storeLearningFeedback(feedback);
+      }
       
       setReviewedItems(prev => new Set([...prev, componentId]));
       console.log('High confidence review completed:', { componentId, action, newType, newCategory });
@@ -336,6 +371,33 @@ export default function AdminPage() {
   const handleManualReviewCategorization = async (componentId: string, type: string, category: string, confidence: number, notes?: string) => {
     try {
       await updateComponentCategorization(componentId, type, category);
+      
+      // Store learning feedback for ML improvement
+      const component = enhancedCategorization?.needs_manual_review?.find((item: any) => item.component_id === componentId);
+      if (component) {
+        const feedback = {
+          componentId,
+          originalSuggestion: {
+            type: component.suggested_type || 'Uncategorized',
+            category: component.suggested_category || 'Uncategorized',
+            confidence: component.confidence || 0
+          },
+          userCorrection: {
+            type,
+            category,
+            action: 'edit' as const
+          },
+          componentData: {
+            description: component.description || '',
+            make: component.make || '',
+            model: component.model || ''
+          },
+          timestamp: new Date()
+        };
+        
+        storeLearningFeedback(feedback);
+      }
+      
       setReviewedItems(prev => new Set([...prev, componentId]));
       console.log('Manual review categorization completed:', { componentId, type, category, confidence, notes });
     } catch (error) {
@@ -579,13 +641,73 @@ export default function AdminPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'analysis' && componentAnalysis && (
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Data Quality Analysis</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-3xl font-bold text-blue-600">{componentAnalysis.total_components}</div>
-                <div className="text-sm text-gray-600">Total Components</div>
+        {activeTab === 'analysis' && (
+          <div className="space-y-6">
+            {/* Learning Stats */}
+            {learningStats && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg shadow-md border border-purple-200">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                  <svg className="w-6 h-6 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  ML Learning Progress
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="text-2xl font-bold text-purple-600">{learningStats.totalFeedback}</div>
+                    <div className="text-sm text-purple-700">Total Feedback</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="text-2xl font-bold text-green-600">{learningStats.accepts}</div>
+                    <div className="text-sm text-green-700">Accepted Suggestions</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <div className="text-2xl font-bold text-blue-600">{learningStats.corrections}</div>
+                    <div className="text-sm text-blue-700">Corrections Made</div>
+                  </div>
+                  {learningStats.accuracyImprovement && (
+                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                      <div className="text-2xl font-bold text-orange-600">{learningStats.accuracyImprovement.improvement > 0 ? '+' : ''}{learningStats.accuracyImprovement.improvement}%</div>
+                      <div className="text-sm text-orange-700">Accuracy Improvement</div>
+                    </div>
+                  )}
+                </div>
+                
+                {learningStats.accuracyImprovement && (
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h4 className="font-semibold text-gray-800 mb-2">Accuracy Trend:</h4>
+                    <div className="flex items-center space-x-4 text-sm">
+                      <span className="text-gray-600">Early: {learningStats.accuracyImprovement.earlyAccuracy}%</span>
+                      <span className="text-gray-400">→</span>
+                      <span className="text-gray-600">Recent: {learningStats.accuracyImprovement.recentAccuracy}%</span>
+                    </div>
+                  </div>
+                )}
+                
+                {learningStats.recentFeedback && learningStats.recentFeedback.length > 0 && (
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h4 className="font-semibold text-gray-800 mb-2">Recent Learning Activity:</h4>
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {learningStats.recentFeedback.slice(-5).map((feedback: any, index: number) => (
+                        <div key={index} className="text-xs text-gray-600 border-l-2 border-purple-200 pl-2">
+                          {feedback.userCorrection.action === 'accept' ? '✅' : '✏️'} 
+                          {feedback.originalSuggestion.type} → {feedback.userCorrection.type}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Component Analysis Results */}
+            {componentAnalysis && (
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Data Quality Analysis</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-3xl font-bold text-blue-600">{componentAnalysis.total_components}</div>
+                    <div className="text-sm text-gray-600">Total Components</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg">
                 <div className="text-3xl font-bold text-green-600">{componentAnalysis.data_quality_score.toFixed(1)}%</div>
@@ -612,6 +734,8 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+      </div>
         )}
 
         {activeTab === 'analysis' && enhancedCategorization && (
