@@ -15,15 +15,17 @@ import {
 // Update component categorization in database
 const updateComponentCategorization = async (componentId: string, type: string, category: string) => {
   try {
-    // Ensure we're using the documentId for the API call
-    const response = await fetch(`/api/av-components/${componentId}`, {
+    // Use the Strapi backend API directly
+    const response = await fetch(`https://backend.sandyy.dev/api/av-components/${componentId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        component_type: type,
-        component_category: category
+        data: {
+          component_type: type,
+          component_category: category
+        }
       })
     });
 
